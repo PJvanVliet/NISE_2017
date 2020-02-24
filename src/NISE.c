@@ -12,6 +12,7 @@
 #include "luminescence.h"
 #include "calc_2DIR.h"
 #include "calc_2DES.h"
+#include "MCFRET.h"
 #include "analyse.h"
 #include "calc_CD.h"
 #include "population.h"
@@ -148,6 +149,14 @@ int main(int argc, char* argv[]) {
                 absorption(non);
             }
         }
+    }
+
+    // Call the MCFRET routine
+    if (!strcmp(non->technique, "MCFRET")) {
+      // No MPI support
+      if (parentRank == 0) {
+         MCFRET(non);
+      }
     }
 
     // Call the Luminescence Routine
