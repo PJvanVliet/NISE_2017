@@ -18,6 +18,7 @@
 #include "calc_LD.h"
 #include "calc_Diffusion.h"
 #include "population.h"
+#include "pop_single_t2.h"
 #include <mpi.h>
 
 /* This is the 2017 version of the NISE program
@@ -132,6 +133,12 @@ int main(int argc, char* argv[]) {
         // Does not support MPI
         if (parentRank == 0)
             population(non);
+    }
+    
+    if (!strcmp(non->technique, "PopT2")) {
+        if (parentRank == 0) {
+            pop_single_t2(non);
+        }
     }
 
     // Call the Exciton Diffusion routine
