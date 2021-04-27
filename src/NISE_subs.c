@@ -106,6 +106,56 @@ void trans_matrix_on_vector(float *c,float *vr,float *vi,int N){
     free(xi);
 }
 
+void matrix_on_matrix(float *a, float *b, int N) {
+    float *c;
+    int i, j, k;
+    c = (float *)calloc(N * N, sizeof(float));
+    // Multiply
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            for (k = 0; k < N; k++) {
+                c[i + N*j] += a[i + N*k] * b[k + N*j];
+            }
+        }
+    }
+    // Copy back
+    copyvec(c, a, N * N);
+    free(c);
+}
+
+// Multiply two complex matrices (destructive)
+void c_matrix_mult(float* ar, float* ai, float* br, float* bi, int N) {
+    float *cr, *ci;
+    int i, j, k;
+
+    cr = (float *)calloc(N * N, sizeof(float));
+    ci = (float *)calloc(N * N, sizeof(float));
+    clearvec(cr, N*N), clearvec(ci, N*N);
+    
+    // Multiply
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            for (k = 0; k < N; k++) {
+                cr[i + N*j] += ar[i + N*k] * br[k + N*j];
+                cr[i + N*j] -= ai[i + N*k] * bi[k + N*j];
+                ci[i + N*j] += ar[i + N*k] * bi[k + N*j];
+                ci[i + N*j] += ai[i + N*k] * br[k + N*j];
+            }
+        }
+    }
+
+    // Copy back
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            ar[i + N*j] = cr[i + N*j];
+            ai[i + N*j] = ci[i + N*j];
+        }
+    }
+    copyvec(cr, ar, N);
+    copyvec(ci, ai, N);
+    free(cr), free(ci);
+}
+
 /**
  * Method that logs a message, in which the message can be formatted like printf accepts.
  */
@@ -989,6 +1039,90 @@ void diagonalizeLPD(float* H, float* v, int N) {
     }
     // Free space
     free(Hcopy), free(work);
+    return;
+}
+
+void matrix_exp(float* m, int N) {
+    int INFO, lwork;
+    float *work;
+    float *wr, *wi;
+    float *vl, *vr;
+    float *expr, *expi;
+    int i, j;
+    // Find lwork;
+    lwork = -1;
+    work = (float *)calloc(1, sizeof(float));
+    printf("Setting up LAPACK routine.\n");
+    printf("Matrix exponent:\n");
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", m[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    wr = (float *)calloc(N, sizeof(float));
+    wi = (float *)calloc(N, sizeof(float));
+    vr = (float *)calloc(N, sizeof(float)); 
+
+    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &N, vr, &N, work, &lwork, &INFO);
+    lwork = work[0];
+    //  printf("LAPACK work dimension %d\n",lwork);
+    //  lwork=8*N;
+    free(work);
+
+    work = (float *)calloc(lwork, sizeof(float));
+    wr = (float *)calloc(N, sizeof(float));
+    wi = (float *)calloc(N, sizeof(float));
+    vr = (float *)calloc(N, sizeof(float)); 
+
+    // Call LAPACK routine
+    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &N, vr, &N, work, &lwork, &INFO);
+    if (INFO != 0) {
+        printf("Something went wrong trying to diagonalize a matrix...\n");
+        exit(0);
+    }
+    printf("LAPACK routine completed!\n");
+
+    for (int i = 0; i < N; i++) {
+        printf("%f+%fj ", wr[i], wi[i]);
+    }
+    printf("\n");
+
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%f ", vr[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    expr = (float *)calloc(N * N, sizeof(float));
+    expi = (float *)calloc(N * N, sizeof(float));
+    clearvec(expr, N*N);
+    clearvec(expi, N*N);
+    for (int i = 0; i < N; i++) {
+        expr[i + N*i] = exp(wr[i]) + cos(wi[i]);
+        expi[i + N*i] = sin(wi[i]);
+    }
+    matrix_on_matrix(expr, vr, N);
+    matrix_on_matrix(expr, vr, N);
+    matrix_on_matrix(expi, vr, N);
+    matrix_on_matrix(expi, vr, N);
+    
+    printf("Non-adiabatic propagator:\n");
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%f+%fj ", expr[i + N*j], expi[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    // Free space
+    free(work);
+    free(expr), free(expi);
     return;
 }
 
