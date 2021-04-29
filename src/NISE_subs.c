@@ -123,39 +123,6 @@ void matrix_on_matrix(float *a, float *b, int N) {
     free(c);
 }
 
-// Multiply two complex matrices (destructive)
-void c_matrix_mult(float* ar, float* ai, float* br, float* bi, int N) {
-    float *cr, *ci;
-    int i, j, k;
-
-    cr = (float *)calloc(N * N, sizeof(float));
-    ci = (float *)calloc(N * N, sizeof(float));
-    clearvec(cr, N*N), clearvec(ci, N*N);
-    
-    // Multiply
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            for (k = 0; k < N; k++) {
-                cr[i + N*j] += ar[i + N*k] * br[k + N*j];
-                cr[i + N*j] -= ai[i + N*k] * bi[k + N*j];
-                ci[i + N*j] += ar[i + N*k] * bi[k + N*j];
-                ci[i + N*j] += ai[i + N*k] * br[k + N*j];
-            }
-        }
-    }
-
-    // Copy back
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            ar[i + N*j] = cr[i + N*j];
-            ai[i + N*j] = ci[i + N*j];
-        }
-    }
-    copyvec(cr, ar, N);
-    copyvec(ci, ai, N);
-    free(cr), free(ci);
-}
-
 /**
  * Method that logs a message, in which the message can be formatted like printf accepts.
  */
@@ -1042,13 +1009,14 @@ void diagonalizeLPD(float* H, float* v, int N) {
     return;
 }
 
+// Exponential of a real matrix (can be antisymmetric)
 void matrix_exp(float* m, int N) {
     int INFO, lwork;
     float *work;
     float *wr, *wi;
-    float *vl, *vr;
+    float *vl, *vrr, *vri;
     float *expr, *expi;
-    int i, j;
+    int i, j, k;
     // Find lwork;
     lwork = -1;
     work = (float *)calloc(1, sizeof(float));
@@ -1062,11 +1030,16 @@ void matrix_exp(float* m, int N) {
     }
     printf("\n");
 
+
     wr = (float *)calloc(N, sizeof(float));
     wi = (float *)calloc(N, sizeof(float));
-    vr = (float *)calloc(N, sizeof(float)); 
+    vrr = (float *)calloc(N*N, sizeof(float));
+    vri = (float *)calloc(N*N, sizeof(float));
+    clearvec(vri, N*N);
 
-    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &N, vr, &N, work, &lwork, &INFO);
+    int ldvl = 1;
+
+    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &ldvl, vrr, &N, work, &lwork, &INFO);
     lwork = work[0];
     //  printf("LAPACK work dimension %d\n",lwork);
     //  lwork=8*N;
@@ -1075,46 +1048,68 @@ void matrix_exp(float* m, int N) {
     work = (float *)calloc(lwork, sizeof(float));
     wr = (float *)calloc(N, sizeof(float));
     wi = (float *)calloc(N, sizeof(float));
-    vr = (float *)calloc(N, sizeof(float)); 
+    vrr = (float *)calloc(N*N, sizeof(float));
 
     // Call LAPACK routine
-    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &N, vr, &N, work, &lwork, &INFO);
+    sgeev_("N", "V", &N, m, &N, wr, wi, vl, &ldvl, vrr, &N, work, &lwork, &INFO);
     if (INFO != 0) {
         printf("Something went wrong trying to diagonalize a matrix...\n");
         exit(0);
     }
-    printf("LAPACK routine completed!\n");
 
-    for (int i = 0; i < N; i++) {
+    // sgeev gives a real output for eigenvectors.
+    // Transform to a complex set of eigenvectors.
+    for (int j = 0; j < N-1; j++) {
+        // Determine if two eigenvalues are complex conjugates.
+        if (wr[j] == wr[j+1] && wi[j] == -wi[j+1]) {
+            for (i = 0; i < N; i++) {
+                vri[j + N*i] = vrr[j+1 + N*i];
+                vri[j+1 + N*i] = -vrr[j+1 + N*i];
+                vrr[j+1 + N*i] = vrr[j + N*i];
+            }
+        }
+    }
+
+    printf("Eigenvalues:\n");
+    for (i = 0; i < N; i++) {
         printf("%f+%fj ", wr[i], wi[i]);
     }
-    printf("\n");
+    printf("\nEigenvectors:\n");
 
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            printf("%f ", vr[i + N*j]);
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f+%fj ", vrr[i + N*j], vri[i + N*j]);
         }
         printf("\n");
     }
     printf("\n");
 
-    expr = (float *)calloc(N * N, sizeof(float));
-    expi = (float *)calloc(N * N, sizeof(float));
-    clearvec(expr, N*N);
-    clearvec(expi, N*N);
+    expr = (float *)calloc(N, sizeof(float));
+    expi = (float *)calloc(N, sizeof(float));
+    clearvec(expr, N);
+    clearvec(expi, N);
     for (int i = 0; i < N; i++) {
-        expr[i + N*i] = exp(wr[i]) + cos(wi[i]);
-        expi[i + N*i] = sin(wi[i]);
+        expr[i] = cos(wi[i]);
+        expi[i] = sin(wi[i]);
     }
-    matrix_on_matrix(expr, vr, N);
-    matrix_on_matrix(expr, vr, N);
-    matrix_on_matrix(expi, vr, N);
-    matrix_on_matrix(expi, vr, N);
-    
+
+    // Compute non-adiabatic propagator
+    clearvec(m, N*N);
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            for (k = 0; k < N; k++) {
+                m[i + N*j] += expr[k] * vrr[k + i*N] * vrr[j + N*k];
+                m[i + N*j] -= expr[k] * vri[k + i*N] * vri[j + N*k];
+                m[i + N*j] -= expi[k] * vrr[k + i*N] * vri[j + N*k];
+                m[i + N*j] -= expi[k] * vri[k + i*N] * vrr[j + N*k];
+            }
+        }
+    }
+
     printf("Non-adiabatic propagator:\n");
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            printf("%f+%fj ", expr[i + N*j], expi[i + N*j]);
+            printf("%f ", m[i + N*j]);
         }
         printf("\n");
     }
@@ -1123,6 +1118,7 @@ void matrix_exp(float* m, int N) {
     // Free space
     free(work);
     free(expr), free(expi);
+    free(wr), free(wi), free(vrr), free(vri);
     return;
 }
 
