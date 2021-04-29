@@ -15,28 +15,41 @@
 #include <stdarg.h>
 
 // Print population results to file
-void pop_print(char* filename, float* pop, t_non* non, int sampleCount) {
+void pop_print(char* filename, float* pop_nise, float* pop_prezhdo, float* pop_alt, t_non* non, int sampleCount) {
     FILE* out = fopen(filename, "w");
-    for (int t2 = 0; t2 < non->tmax2; t2++) {
-            pop[t2] /= sampleCount;
-            // .csv format
-            fprintf(out, "%f,%e\n", t2 * non->deltat, pop[t2]);
+    for (int t2 = 0; t2 < non->tmax2 + 1; t2++) {
+            pop_nise[t2] /= sampleCount;
+            pop_prezhdo[t2] /= sampleCount;
+            pop_alt[t2] /= sampleCount;
+            fprintf(out, "%f %e %e %e\n", t2 * non->deltat, pop_nise[t2], pop_prezhdo[t2], pop_alt[t2]);
     }
     fclose(out);
+}
+
+void reset_wavefn(float* cr_nise, float* ci_nise, float* cr_prezhdo, float* ci_prezhdo, float* cr_alt, float* ci_alt, int N) {
+    clearvec(cr_nise, N);
+    clearvec(ci_nise, N);
+    clearvec(cr_prezhdo, N);
+    clearvec(ci_prezhdo, N);
+    clearvec(cr_alt, N);
+    clearvec(ci_alt, N);
+    cr_nise[0] = cr_prezhdo[0] = cr_alt[0] = 1.0;
+    ci_nise[0] = ci_prezhdo[0] = ci_alt[0] = 0.0;
 }
 
 void propagate_NISE(t_non *non, float *H, float *e, float *re_U, float *im_U, float *cr, float *ci) {
     float f;
     int index, N;
     float re, im;
+    int i;
 
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
 
     // Exponentiate [U=exp(-i/h H dt)]
-    for (int a = 0; a < N; a++) {
-        re_U[a] = cos(e[a] * f);
-        im_U[a] = -sin(e[a] * f);
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos(e[i] * f);
+        im_U[i] = -sin(e[i] * f);
     }
 
     // Transfer to eigen basis
@@ -47,13 +60,162 @@ void propagate_NISE(t_non *non, float *H, float *e, float *re_U, float *im_U, fl
     trans_matrix_on_vector(H,cr,ci,N);
 }
 
-// void propagate_prezhdo() {
+void propagate_prezhdo(t_non *non, float *H_old, float *H_new, float *e, float *re_U, float *im_U, float *cr, float *ci) {
+    float f;
+    int index, N;
+    float qc_ij, qc_ji, ediff;
+    float re, im;
+    float* abs;
+    int i, j;
+    
+    N = non->singles;
+    f = non->deltat * icm2ifs * twoPi;
+    float kBT=non->temperature*0.695; // Kelvin to cm-1
 
-// }
+    abs = (float *)calloc(N, sizeof(float));
 
-// void propagate_alt() {
+    // Compute absolute values of the wavefunction coeffs
 
-// }
+    for (i = 0; i < N; i++) {
+        abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
+    }
+
+    // Exponentiate [U=exp(-i/h H dt)]
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos(e[i] * f);
+        im_U[i] = -sin(e[i] * f);
+    }
+
+    // Compute unadjusted non-adiabatic coupling
+    matrix_on_matrix(H_old, H_new, N);
+
+    // Compute temperature adjustments
+    for (i = 0; i < N; i++) {
+        // Reset diagonal
+        H_old[i + N*i] = 0;
+        for (j = 0; j < i; j++) {
+            ediff = e[i] - e[j];
+            // TODO: make sure there are no overflows 
+            // for low temperatures!
+            qc_ij = sqrt(2 / (1 + exp(ediff / kBT)));
+            qc_ji = sqrt(2 / (1 + exp(-ediff / kBT)));
+            H_old[i + N*j] *= abs[j]*qc_ij + abs[i]*qc_ji;
+            // Correction by Kleinekathofer
+            H_old[i + N*j] /= abs[i] + abs[j];
+            H_old[j + N*i] = -H_old[i + N*j];
+        }
+    }
+
+    // Exponentiate the non-adiabatic couplings
+    matrix_exp(H_old, N);
+
+    // Convert to adiabatic basis
+    matrix_on_vector(H_new, cr, ci, N);
+    // Multiply with (real) non-adiabatic propagator
+    matrix_on_vector(H_old, cr, ci, N);
+    // Multiply with matrix exponent
+    vector_on_vector(re_U, im_U, cr, ci, N);
+    // Transform back to site basis
+    trans_matrix_on_vector(H_new, cr, ci, N);
+
+
+    free(abs);
+}
+
+void propagate_alt(t_non *non, float *H_old, float *H_new, float *e, float *re_U, float *im_U, float *cr, float *ci) {
+    float f;
+    int index, N;
+    float qc_ij, qc_ji, ediff;
+    float re, im;
+    float* abs;
+    float* d;
+    float* zero;
+    int i, j;
+
+    N = non->singles;
+    f = non->deltat * icm2ifs * twoPi;
+    float kBT=non->temperature*0.695; // Kelvin to cm-1
+
+    abs = (float *)calloc(N, sizeof(float));
+    d = (float *)calloc(N, sizeof(float));
+    zero = (float *)calloc(N, sizeof(float));
+    clearvec(zero, N);
+
+    // Compute absolute values of the wavefunction
+    for (i = 0; i < N; i++) {
+        abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
+    }
+
+    // Exponentiate [U=exp(-i/h H dt)]
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos(e[i] * f);
+        im_U[i] = -sin(e[i] * f);
+    }
+
+    // Compute unadjusted non-adiabatic coupling
+    matrix_on_matrix(H_old, H_new, N);
+
+    // Print non-adiabatic coupling
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", H_old[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    // Compute temperature adjustments
+    for (i = 0; i < N; i++) {
+        // Reset diagonals
+        H_old[i + N*i] = 0;
+        for (j = 0; j < i; j++) {
+            ediff = e[i] - e[j];
+            // TODO: make sure there are no overflows!
+            if (ediff > 0) {
+                qc_ij = 1;
+                qc_ji = exp(-ediff / kBT);
+            } else {
+                qc_ij = exp(ediff / kBT);
+                qc_ji = 1;
+            }
+            H_old[i + N*j] *= abs[j]*qc_ij + abs[i]*qc_ji;
+            // Correction by Kleinekathofer
+            H_old[i + N*j] /= abs[i] + abs[j];
+            H_old[j + N*i] = -H_old[i + N*j];
+        }
+    }
+
+    // Print non-adiabatic coupling
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", H_old[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    // Diagonalise
+    diagonalizeLPD(H_old, d, N);
+    // Exponentiate
+    for (i = 0; i < N; i++) {
+        d[i] = exp(d[i]);
+    }
+
+
+    // Convert to adiabatic basis
+    matrix_on_vector(H_new, cr, ci, N);
+    // Multiply with matrix exponent
+    vector_on_vector(re_U, im_U, cr, ci, N);
+    // Multiply with (real) non-adiabatic propagator
+    matrix_on_vector(H_old, cr, ci, N);
+    vector_on_vector(d, zero, cr, ci, N);
+    trans_matrix_on_vector(H_old, cr, ci, N);
+    // Transform back to site basis
+    trans_matrix_on_vector(H_new, cr, ci, N);
+
+
+    free(abs);
+}
 
 void pop_single_t2(t_non* non) {
     // Initialize each process base variables
@@ -90,22 +252,15 @@ void pop_single_t2(t_non* non) {
     ci_prezhdo = (float *) calloc(N, sizeof(float));
     cr_alt = (float *) calloc(N, sizeof(float));
     ci_alt = (float *) calloc(N, sizeof(float));
-    pop_nise = (float *) calloc(non->tmax2, sizeof(float));
-    pop_prezhdo = (float *) calloc(non->tmax2, sizeof(float));
-    pop_alt = (float *) calloc(non->tmax2, sizeof(float));
-
-    sampleCount = non->end - non->begin;
+    pop_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    pop_prezhdo = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    pop_alt = (float *) calloc(non->tmax2 + 1, sizeof(float));
     
-    // Set the initial wavefunctions
-    clearvec(cr_nise, N);
-    clearvec(ci_nise, N);
-    clearvec(cr_prezhdo, N);
-    clearvec(ci_prezhdo, N);
-    clearvec(cr_alt, N);
-    clearvec(ci_alt, N);
-    cr_nise[0] = cr_prezhdo[0] = cr_alt[0] = 1.0;
-    ci_nise[0] = ci_prezhdo[0] = ci_alt[0] = 0.0;
-    pop_nise[0] = pop_prezhdo[0] = pop_alt[0] = 1.0;
+    // Determine number of samples
+    sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
+    printf("Total number of samples: %i\n", sampleCount);
+    // Set the initial population
+    pop_nise[0] = pop_prezhdo[0] = pop_alt[0] = 1.0 * sampleCount;
 
     // Read the Hamiltonian file
     FILE* H_traj = fopen(non->energyFName, "rb");
@@ -117,19 +272,21 @@ void pop_single_t2(t_non* non) {
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
         ti = samples * non->sample;
-        int tj = ti + non->tmax1;
 
         // Load first Hamiltonian
-        if (read_He(non, Hamil_i_e, H_traj, tj) != 1) {
+        if (read_He(non, Hamil_i_e, H_traj, ti) != 1) {
             printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
             exit(1);
         }
         build_diag_H(Hamil_i_e, H_new, e, N);
+        
+        // Reset the wavefunctions
+        reset_wavefn(cr_nise, ci_nise, cr_prezhdo, ci_prezhdo, cr_alt, ci_alt, N);
 
         // Start integrating the Schrödinger equation
         // NISE:
-        for (int t2 = 0; t2 < non->tmax2 - 1; t2++) {
-            int tm = tj + t2;
+        for (int t2 = 0; t2 < non->tmax2; t2++) {
+            int tm = ti + t2 + 1;
             // Copy old Hamiltonian
             copyvec(H_new, H_old, N2);
             // Load new Hamiltonian
@@ -141,18 +298,27 @@ void pop_single_t2(t_non* non) {
 
             // Run NISE
             propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+
             float pop = cr_nise[0]*cr_nise[0] + ci_nise[0]*ci_nise[0];
             // Sum over bath (unnormalised)
             pop_nise[t2 + 1] += pop;
 
             // Run Prezhdo
+            propagate_prezhdo(non, H_old, H_new, e, re_U, im_U, cr_prezhdo, ci_prezhdo);
+            pop = cr_prezhdo[0]*cr_prezhdo[0] + ci_prezhdo[0]*ci_prezhdo[0];
 
+            pop_prezhdo[t2 + 1] += pop;
             // Run alt
+            // propagate_alt(non, H_old, H_new, e, re_U, im_U, cr_alt, ci_alt);
+            // pop = cr_alt[0] * cr_alt[0] + ci_alt[0] * ci_alt[0];
 
+            // pop_alt[t2 + 1] += pop;
         }
     }
-    char* fn = "pop_t2.csv";
-    pop_print(fn, pop_nise, non, sampleCount);
+    printf("\n");
+    
+    char* fn = "pop_t2.txt";
+    pop_print(fn, pop_nise, pop_prezhdo, pop_alt, non, sampleCount);
 
     free(Hamil_i_e), free(H_new), free(H_old);
     free(re_U), free(im_U), free(e);
