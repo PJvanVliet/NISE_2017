@@ -110,16 +110,16 @@ void matrix_on_matrix(float *a, float *b, int N) {
     float *c;
     int i, j, k;
     c = (float *)calloc(N * N, sizeof(float));
-    // Multiply
+    // Multiply (C = A^T B)
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                c[i + N*j] += a[i + N*k] * b[k + N*j];
+                c[j + N*i] += a[k + N*i] * b[k + N*j];
             }
         }
     }
     // Copy back
-    copyvec(c, a, N * N);
+    copyvec(c, b, N * N);
     free(c);
 }
 
@@ -1020,16 +1020,8 @@ void matrix_exp(float* m, int N) {
     // Find lwork;
     lwork = -1;
     work = (float *)calloc(1, sizeof(float));
-    printf("Setting up LAPACK routine.\n");
-    printf("Matrix exponent:\n");
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            printf("%f ", m[i + N*j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-
+    
+    // printf("Setting up LAPACK routine.\n");
 
     wr = (float *)calloc(N, sizeof(float));
     wi = (float *)calloc(N, sizeof(float));
@@ -1070,24 +1062,11 @@ void matrix_exp(float* m, int N) {
         }
     }
 
-    printf("Eigenvalues:\n");
-    for (i = 0; i < N; i++) {
-        printf("%f+%fj ", wr[i], wi[i]);
-    }
-    printf("\nEigenvectors:\n");
-
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            printf("%f+%fj ", vrr[i + N*j], vri[i + N*j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-
     expr = (float *)calloc(N, sizeof(float));
     expi = (float *)calloc(N, sizeof(float));
     clearvec(expr, N);
     clearvec(expi, N);
+    // Exponentiate diagonal matrix
     for (int i = 0; i < N; i++) {
         expr[i] = cos(wi[i]);
         expi[i] = sin(wi[i]);
@@ -1098,22 +1077,29 @@ void matrix_exp(float* m, int N) {
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                m[i + N*j] += expr[k] * vrr[k + i*N] * vrr[j + N*k];
-                m[i + N*j] -= expr[k] * vri[k + i*N] * vri[j + N*k];
-                m[i + N*j] -= expi[k] * vrr[k + i*N] * vri[j + N*k];
-                m[i + N*j] -= expi[k] * vri[k + i*N] * vrr[j + N*k];
+                m[j + N*i] += expr[k] * vrr[k + N*i] * vrr[k + N*j];
+                m[j + N*i] += expr[k] * vri[k + N*i] * vri[k + N*j];
+                m[j + N*i] -= expi[k] * vrr[k + N*i] * vri[k + N*j];
+                m[j + N*i] += expi[k] * vri[k + N*i] * vrr[k + N*j];
             }
         }
     }
 
-    printf("Non-adiabatic propagator:\n");
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            printf("%f ", m[i + N*j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printf("Matrix exponent:\n");
+    // for (i = 0; i < N; i++) {
+    //     for (j = 0; j < N; j++) {
+    //         printf("%f ", m[i + N*j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\nNon-adiabatic propagator:\n");
+    // for (int i = 0; i < N; i++) {
+    //     for (int j = 0; j < N; j++) {
+    //         printf("%f ", m[i + N*j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
 
     // Free space
     free(work);
