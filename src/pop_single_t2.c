@@ -37,7 +37,18 @@ void reset_wavefn(float* cr_nise, float* ci_nise, float* cr_prezhdo, float* ci_p
     ci_nise[0] = ci_prezhdo[0] = ci_alt[0] = 0.0;
 }
 
-void propagate_NISE(t_non *non, float *H, float *e, float *re_U, float *im_U, float *cr, float *ci) {
+void propagate_NISE(
+    t_non *non,
+    float *H, 
+    float *e, 
+    float *re_U, 
+    float *im_U, 
+    float *cr, 
+    float *ci,
+    float *pop_nise,
+    float *pop_nise_ad,
+    int t2
+) {
     float f;
     int index, N;
     float re, im;
@@ -54,13 +65,33 @@ void propagate_NISE(t_non *non, float *H, float *e, float *re_U, float *im_U, fl
 
     // Transfer to eigen basis
     matrix_on_vector(H,cr,ci,N);
+
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
+
+    float pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_nise_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
+    
     // Transfer back to site basis
     trans_matrix_on_vector(H,cr,ci,N);
+
+    pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_nise[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 }
 
-void propagate_prezhdo(t_non *non, float *H_old, float *H_new, float *e, float *re_U, float *im_U, float *cr, float *ci) {
+void propagate_prezhdo(
+    t_non *non, 
+    float *H_old, 
+    float *H_new, 
+    float *e, 
+    float *re_U, 
+    float *im_U, 
+    float *cr, 
+    float *ci,
+    float *pop_prezhdo,
+    float *pop_prezhdo_ad,
+    int t2
+) {
     float f;
     int index, N;
     float qc_ij, qc_ji, ediff;
@@ -112,14 +143,33 @@ void propagate_prezhdo(t_non *non, float *H_old, float *H_new, float *e, float *
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
-    vector_on_vector(re_U, im_U, cr, ci, N);
+    vector_on_vector(re_U,im_U,cr,ci,N);
+
+    float pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_prezhdo_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
+    
     // Transform back to site basis
     trans_matrix_on_vector(H_new, cr, ci, N);
+
+    pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_prezhdo[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 
     free(abs);
 }
 
-void propagate_alt(t_non *non, float *H_old, float *H_new, float *e, float *re_U, float *im_U, float *cr, float *ci) {
+void propagate_alt(
+    t_non *non, 
+    float *H_old, 
+    float *H_new, 
+    float *e, 
+    float *re_U, 
+    float *im_U, 
+    float *cr, 
+    float *ci,
+    float *pop_alt,
+    float *pop_alt_ad,
+    int t2
+) {
     float f;
     int index, N;
     float qc_ij, qc_ji, ediff;
@@ -134,7 +184,6 @@ void propagate_alt(t_non *non, float *H_old, float *H_new, float *e, float *re_U
     abs = (float *)calloc(N, sizeof(float));
 
     // Compute absolute values of the wavefunction coeffs
-
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
@@ -178,17 +227,32 @@ void propagate_alt(t_non *non, float *H_old, float *H_new, float *e, float *re_U
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
-    vector_on_vector(re_U, im_U, cr, ci, N);
+    vector_on_vector(re_U,im_U,cr,ci,N);
+
+    float pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_alt_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
+    
     // Transform back to site basis
     trans_matrix_on_vector(H_new, cr, ci, N);
 
+    pop = cr[0]*cr[0] + ci[0]*ci[0];
+    pop_alt[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 
     free(abs);
+}
+
+void row_swap(float* a, int row1, int row2, int N) {
+    for (int i = 0; i < N; i++) {
+        float temp = a[i + row1*N];
+        a[i + row1*N] = a[i + row2*N];
+        a[i + row2*N] = temp; 
+    }
 }
 
 void swaps(float* H_new, float* H_old, int N) {
     int N2;
     float *Hcopy;
+    float temp;
     int imax, jmax;
     int i, j, k;
     float min_diag, max_offdiag;
@@ -198,17 +262,18 @@ void swaps(float* H_new, float* H_old, int N) {
     Hcopy = (float *)calloc(N2, sizeof(float));
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(H_new, Hcopy, N);
+
     // Determine maximum off-diagonal 
     // and minimum diagonal elements.
     imax = 0, jmax = 0;
     min_diag = 1, max_offdiag = 0;
     for (i = 0; i < N; i++) {
-        float temp = fabs(Hcopy[i + N*i]);
+        temp = fabs(Hcopy[i + N*i]);
         if (temp < min_diag) {
             min_diag = temp;
         }
         for (j = 0; j < i; j++) {
-            float temp = fabs(Hcopy[j + N*i]);
+            temp = fabs(Hcopy[j + N*i]);
             if (temp > max_offdiag) {
                 imax = i, jmax = j;
                 max_offdiag = temp;
@@ -216,37 +281,25 @@ void swaps(float* H_new, float* H_old, int N) {
         }
     }
 
-    // Check if columns must be swapped
+    // Check if rows must be swapped
     while (min_diag < max_offdiag) {
-        // Swap columns
-        printf("imax: %i, jmax: %i\n", imax, jmax);
-        for (i = 0; i < N; i++) {
-            for (j = 0; j < N; j++) {
-                printf("%f ", Hcopy[j + N*i]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-        for (k = 0; k < N; k++) {
-            float temp = H_new[k, N*imax];
-            H_new[k, N*imax] = H_new[jmax, N*jmax];
-            H_new[k, N*jmax] = temp;
-        }
+        row_swap(H_new, imax, jmax, N);
 
         // Recompute min_diag and max_offdiag
         copyvec(H_old, Hcopy, N2);
         matrix_on_matrix(H_new, Hcopy, N);
+
         // Determine maximum off-diagonal 
         // and minimum diagonal elements.
         imax = 0, jmax = 0;
         min_diag = 1, max_offdiag = 0;
         for (i = 0; i < N; i++) {
-            float temp = fabs(Hcopy[i + N*i]);
+            temp = fabs(Hcopy[i + N*i]);
             if (temp < min_diag) {
                 min_diag = temp;
             }
-            for (j = 0; j < N; j++) {
-                float temp = fabs(Hcopy[j + N*i]);
+            for (j = 0; j < i; j++) {
+                temp = fabs(Hcopy[j + N*i]);
                 if (temp > max_offdiag) {
                     imax = i, jmax = j;
                     max_offdiag = temp;
@@ -261,14 +314,16 @@ void swaps(float* H_new, float* H_old, int N) {
     for (i = 0; i < N; i++) {
         if (Hcopy[i + N*i] < 0) {
             for (j = 0; j < N; j++) {
-                H_new[j + N*i] = -H_new[j + N*i];
+                H_new[i + N*j] = -H_new[i + N*j];
             }
         }
     }
+    
+    free(Hcopy);
 }
 
 void pop_single_t2(t_non* non) {
-    // Initialize each process base variables
+    // Initialise base variables
     int N = non->singles;
     int nn2 = N * (N + 1) / 2;
     int N2 = N * N;
@@ -291,6 +346,9 @@ void pop_single_t2(t_non* non) {
     float *pop_nise;
     float *pop_prezhdo;
     float *pop_alt;
+    float *pop_nise_ad;
+    float *pop_prezhdo_ad;
+    float *pop_alt_ad;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_new = (float *) calloc(N2, sizeof(float));
@@ -308,6 +366,9 @@ void pop_single_t2(t_non* non) {
     pop_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_prezhdo = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_alt = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    pop_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    pop_prezhdo_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    pop_alt_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     
     // Determine number of samples
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
@@ -333,9 +394,6 @@ void pop_single_t2(t_non* non) {
         }
         build_diag_H(Hamil_i_e, H_new, e, N);
 
-        // Check if we need to perform any swaps.
-        swaps(H_new, H_old, N);
-        
         // Reset the wavefunctions
         reset_wavefn(cr_nise, ci_nise, cr_prezhdo, ci_prezhdo, cr_alt, ci_alt, N);
 
@@ -347,26 +405,26 @@ void pop_single_t2(t_non* non) {
             copyvec(H_new, H_old, N2);
             // Load new Hamiltonian
             if (read_He(non, Hamil_i_e, H_traj, tm) != 1) {
-                printf("Hamiltonian trajectory file to short, could not fill buffer!!!\n");
+                printf("Hamiltonian trajectory file too short, could not fill buffer!!!\n");
                 exit(1);
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
 
-            // Run NISE
-            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+            // Check if we need to perform any swaps, to maximise overlap
+            swaps(H_new, H_old, N);
 
-            float pop = cr_nise[0]*cr_nise[0] + ci_nise[0]*ci_nise[0];
-            // Sum over bath (unnormalised)
-            pop_nise[t2 + 1] += pop;
+            // Run NISE
+            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise, pop_nise, pop_nise_ad, t2);
+
 
             // Run Prezhdo
             copyvec(H_old, Hcopy, N2);
-            propagate_prezhdo(non, Hcopy, H_new, e, re_U, im_U, cr_prezhdo, ci_prezhdo);
+            propagate_prezhdo(non, Hcopy, H_new, e, re_U, im_U, cr_prezhdo, ci_prezhdo, pop_prezhdo, pop_prezhdo_ad, t2);
             pop = cr_prezhdo[0]*cr_prezhdo[0] + ci_prezhdo[0]*ci_prezhdo[0];
 
             pop_prezhdo[t2 + 1] += pop;
             // Run alt
-            propagate_alt(non, H_old, H_new, e, re_U, im_U, cr_alt, ci_alt);
+            propagate_alt(non, H_old, H_new, e, re_U, im_U, cr_alt, ci_alt, pop_alt, pop_alt_ad, t2);
             pop = cr_alt[0] * cr_alt[0] + ci_alt[0] * ci_alt[0];
 
             pop_alt[t2 + 1] += pop;

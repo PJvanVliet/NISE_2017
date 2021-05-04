@@ -10,6 +10,7 @@ void unitmat(float *a,int N);
 void vector_on_vector(float *rr,float *ir,float *vr,float *vi,int N);
 void matrix_on_vector(float *c,float *vr,float *vi,int N);
 void trans_matrix_on_vector(float *c,float *vr,float *vi,int N);
+void matrix_on_matrix(float *a, float *b, int N);
 void log_item(char* msgFormat, ...);
 time_t set_time(time_t t0);
 time_t log_time(time_t t0,FILE *log);
@@ -32,6 +33,7 @@ void propagate_vec_coupling_S_doubles(t_non *non,float *Hamiltonian_i,float *cr,
 *ci,int m,float *Anh);
 void propagate_vec_coupling_S_doubles_ES(t_non *non,float *Hamiltonian_i,float *cr,float *ci,int m);
 void diagonalizeLPD(float *H,float *v,int N);
+void matrix_exp(float *m, int N);
 void build_diag_H(float *Hamiltonian_i,float *H,float *e,int N);
 void generateCS(float *X,float *Y,float *Z);
 void projection(float *phi,t_non *non);

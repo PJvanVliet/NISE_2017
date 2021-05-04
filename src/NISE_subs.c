@@ -114,7 +114,7 @@ void matrix_on_matrix(float *a, float *b, int N) {
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                c[j + N*i] += a[k + N*i] * b[k + N*j];
+                c[j + N*i] += a[i + N*k] * b[j + N*k];
             }
         }
     }
