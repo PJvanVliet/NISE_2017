@@ -69,13 +69,11 @@ void propagate_NISE(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
-    float pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_nise_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
     
     // Transfer back to site basis
     trans_matrix_on_vector(H,cr,ci,N);
 
-    pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_nise[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 }
 
@@ -145,13 +143,11 @@ void propagate_prezhdo(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
-    float pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_prezhdo_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
     
     // Transform back to site basis
     trans_matrix_on_vector(H_new, cr, ci, N);
 
-    pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_prezhdo[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 
     free(abs);
@@ -229,13 +225,11 @@ void propagate_alt(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
-    float pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_alt_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
     
     // Transform back to site basis
     trans_matrix_on_vector(H_new, cr, ci, N);
 
-    pop = cr[0]*cr[0] + ci[0]*ci[0];
     pop_alt[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 
     free(abs);
@@ -396,6 +390,11 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(cr_nise, ci_nise, cr_prezhdo, ci_prezhdo, cr_alt, ci_alt, N);
+        for (j = 0; j < N; j++) {
+            pop_nise_ad[0] += H_new[j] * H_new[j]; 
+            pop_prezhdo_ad[0] += H_new[j] * H_new[j];
+            pop_alt_ad[0] += H_new[j] * H_new[j];
+        }
 
         // Start integrating the Schrödinger equation
         // NISE:
@@ -416,24 +415,21 @@ void pop_single_t2(t_non* non) {
             // Run NISE
             propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise, pop_nise, pop_nise_ad, t2);
 
-
             // Run Prezhdo
             copyvec(H_old, Hcopy, N2);
             propagate_prezhdo(non, Hcopy, H_new, e, re_U, im_U, cr_prezhdo, ci_prezhdo, pop_prezhdo, pop_prezhdo_ad, t2);
-            pop = cr_prezhdo[0]*cr_prezhdo[0] + ci_prezhdo[0]*ci_prezhdo[0];
 
-            pop_prezhdo[t2 + 1] += pop;
             // Run alt
             propagate_alt(non, H_old, H_new, e, re_U, im_U, cr_alt, ci_alt, pop_alt, pop_alt_ad, t2);
-            pop = cr_alt[0] * cr_alt[0] + ci_alt[0] * ci_alt[0];
 
-            pop_alt[t2 + 1] += pop;
         }
     }
     printf("\n");
     
     char* fn = "pop_t2.txt";
     pop_print(fn, pop_nise, pop_prezhdo, pop_alt, non, sampleCount);
+    fn = "pop_t2_ad.txt";
+    pop_print(fn, pop_nise_ad, pop_prezhdo_ad, pop_alt_ad, non, sampleCount);
 
     free(Hamil_i_e), free(H_new), free(H_old), free(Hcopy);
     free(re_U), free(im_U), free(e);
@@ -441,4 +437,5 @@ void pop_single_t2(t_non* non) {
     free(cr_prezhdo), free(ci_prezhdo);
     free(cr_alt), free(ci_alt);
     free(pop_nise), free(pop_prezhdo), free(pop_alt);
+    free(pop_nise_ad), free(pop_prezhdo_ad), free(pop_alt_ad);
 }
