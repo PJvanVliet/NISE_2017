@@ -125,12 +125,16 @@ void propagate_prezhdo(
         // Reset diagonal
         H_old[i + N*i] = 0;
         for (j = 0; j < i; j++) {
-            ediff = e[i] - e[j];
+            ediff = e[i] - e[j]
             qc_ij = sqrt(2 / (1 + exp(ediff / kBT)));
             qc_ji = sqrt(2 / (1 + exp(-ediff / kBT)));
-            H_old[i + N*j] *= abs[j]*qc_ij + abs[i]*qc_ji;
             // Correction by Kleinekathofer
-            H_old[i + N*j] /= abs[i] + abs[j];
+            if (abs[i] - abs[j] != 0) {
+                H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
+                H_old[i + N*j] /= abs[j] - abs[i];
+            } else {
+                H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
+            }
             H_old[j + N*i] = -H_old[i + N*j];
         }
     }
@@ -202,7 +206,6 @@ void propagate_alt(
         H_old[i + N*i] = 0;
         for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
-            // TODO: make sure there are no overflows!
             if (ediff > 0) {
                 qc_ij = exp(-ediff / kBT);
                 qc_ji = 1;
@@ -210,9 +213,13 @@ void propagate_alt(
                 qc_ij = 1;
                 qc_ji = exp(ediff / kBT);
             }
-            H_old[i + N*j] *= abs[j]*qc_ij + abs[i]*qc_ji;
             // Correction by Kleinekathofer
-            H_old[i + N*j] /= abs[i] + abs[j];
+            if (abs[i] - abs[j] != 0) {
+                H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
+                H_old[i + N*j] /= abs[j] - abs[i];
+            } else {
+                H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
+            }
             H_old[j + N*i] = -H_old[i + N*j];
         }
     }
@@ -390,11 +397,9 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(cr_nise, ci_nise, cr_prezhdo, ci_prezhdo, cr_alt, ci_alt, N);
-        for (j = 0; j < N; j++) {
-            pop_nise_ad[0] += H_new[j] * H_new[j]; 
-            pop_prezhdo_ad[0] += H_new[j] * H_new[j];
-            pop_alt_ad[0] += H_new[j] * H_new[j];
-        }
+        pop_nise_ad[0] += H_new[0] * H_new[0]; 
+        pop_prezhdo_ad[0] += H_new[0] * H_new[0];
+        pop_alt_ad[0] += H_new[0] * H_new[0];
 
         // Start integrating the Schrödinger equation
         // NISE:
