@@ -119,7 +119,7 @@ void readInput(int argc, char* argv[], t_non* non) {
         if (keyWordI("FFT", Buffer, &non->fft, LabelLength) == 1) continue;
 
         // Read Dephasingtime
-        //    if (keyWordF("DephasingTime",Buffer,&non->dephasing,LabelLength)==1) continue;
+        if (keyWordF("DephasingTime",Buffer,&non->dephasing,LabelLength)==1) continue;
 
         // Read treshhold for sparce matrices
         if (keyWordF("Threshold", Buffer, &non->thres, LabelLength) == 1) continue;

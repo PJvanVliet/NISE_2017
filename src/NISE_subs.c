@@ -1009,7 +1009,7 @@ void diagonalizeLPD(float* H, float* v, int N) {
     return;
 }
 
-// Exponential of a real matrix (can be antisymmetric)
+// Exponential of a real matrix (can be antisymmetric), destructive
 void matrix_exp(float* m, int N) {
     int INFO, lwork;
     float *work;
@@ -1084,22 +1084,6 @@ void matrix_exp(float* m, int N) {
             }
         }
     }
-
-    // printf("Matrix exponent:\n");
-    // for (i = 0; i < N; i++) {
-    //     for (j = 0; j < N; j++) {
-    //         printf("%f ", m[i + N*j]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\nNon-adiabatic propagator:\n");
-    // for (int i = 0; i < N; i++) {
-    //     for (int j = 0; j < N; j++) {
-    //         printf("%f ", m[i + N*j]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\n");
 
     // Free space
     free(work);
