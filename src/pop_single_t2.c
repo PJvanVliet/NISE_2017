@@ -39,15 +39,12 @@ void reset_wavefn(float* cr_nise, float* ci_nise, float* cr_standard, float* ci_
 
 void propagate_NISE(
     t_non *non,
-    float *H, 
+    float *H,
     float *e, 
     float *re_U, 
     float *im_U, 
     float *cr, 
-    float *ci,
-    float *pop_nise,
-    float *pop_nise_ad,
-    int t2
+    float *ci
 ) {
     float f;
     int index, N;
@@ -57,24 +54,17 @@ void propagate_NISE(
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
 
+    matrix_on_vector(H, cr, ci, N);
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e[i] * f);
         im_U[i] = -sin(e[i] * f);
     }
 
-    // Transfer to eigen basis
-    matrix_on_vector(H,cr,ci,N);
-
     // Multiply with matrix exponent
-    vector_on_vector(re_U,im_U,cr,ci,N);
+    vector_on_vector(re_U, im_U, cr, ci, N);
 
-    pop_nise_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
-    
-    // Transfer back to site basis
-    trans_matrix_on_vector(H,cr,ci,N);
-
-    pop_nise[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
+    trans_matrix_on_vector(H, cr, ci, N);
 }
 
 void propagate_standard(
@@ -85,10 +75,7 @@ void propagate_standard(
     float *re_U, 
     float *im_U, 
     float *cr, 
-    float *ci,
-    float *pop_standard,
-    float *pop_standard_ad,
-    int t2
+    float *ci
 ) {
     float f;
     int index, N;
@@ -96,15 +83,15 @@ void propagate_standard(
     float re, im;
     float* abs;
     int i, j, k;
-    float* cpf;
+    // float* cpf;
     
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
     float kBT=non->temperature*0.695; // Kelvin to cm-1
 
     abs = (float *)calloc(N, sizeof(float));
-    cpf = (float *)calloc(N*N, sizeof(float));
-    clearvec(cpf, N*N);
+    // cpf = (float *)calloc(N*N, sizeof(float));
+    // clearvec(cpf, N*N);
 
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
@@ -116,9 +103,6 @@ void propagate_standard(
         re_U[i] = cos(e[i] * f);
         im_U[i] = -sin(e[i] * f);
     }
-
-    // Convert to adiabatic basis
-    matrix_on_vector(H_old, cr, ci, N);
 
     // Compute unadjusted non-adiabatic coupling
     matrix_on_matrix(H_new, H_old, N);
@@ -165,13 +149,6 @@ void propagate_standard(
     // // Multiply with CPF
     // matrix_on_vector(cpf, cr, ci, N);
 
-    pop_standard_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
-    
-    // Transform back to site basis
-    trans_matrix_on_vector(H_new, cr, ci, N);
-
-    pop_standard[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
-
     free(abs);
 }
 
@@ -183,10 +160,7 @@ void propagate_harmonic(
     float *re_U, 
     float *im_U,
     float *cr, 
-    float *ci,
-    float *pop_harmonic,
-    float *pop_harmonic_ad,
-    int t2
+    float *ci
 ) {
     float f;
     int index, N;
@@ -211,9 +185,6 @@ void propagate_harmonic(
         re_U[i] = cos(e[i] * f);
         im_U[i] = -sin(e[i] * f);
     }
-
-    // Convert to adiabatic basis
-    matrix_on_vector(H_old, cr, ci, N);
 
     // Compute unadjusted non-adiabatic coupling
     matrix_on_matrix(H_new, H_old, N);
@@ -245,13 +216,6 @@ void propagate_harmonic(
     trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
-
-    pop_harmonic_ad[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
-    
-    // Transform back to site basis
-    trans_matrix_on_vector(H_new, cr, ci, N);
-
-    pop_harmonic[t2 + 1] += cr[0]*cr[0] + ci[0]*ci[0];
 
     free(abs);
 }
@@ -354,18 +318,22 @@ void pop_single_t2(t_non* non) {
     float *e;
     float *cr_nise;
     float *ci_nise;
+    float *cr_nise_ad;
+    float *ci_nise_ad;
     float *cr_standard;
     float *ci_standard;
+    float *ci_standard_ad;
+    float *cr_standard_ad;
     float *cr_harmonic;
     float *ci_harmonic;
+    float *cr_harmonic_ad;
+    float *ci_harmonic_ad;
     float *pop_nise;
     float *pop_standard;
     float *pop_harmonic;
     float *pop_nise_ad;
     float *pop_standard_ad;
     float *pop_harmonic_ad;
-    float *cr_copy;
-    float *ci_copy;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_new = (float *) calloc(N2, sizeof(float));
@@ -376,18 +344,22 @@ void pop_single_t2(t_non* non) {
     e = (float *) calloc(N, sizeof(float));
     cr_nise = (float *) calloc(N, sizeof(float));
     ci_nise = (float *) calloc(N, sizeof(float));
+    cr_nise_ad = (float *) calloc(N, sizeof(float));
+    ci_nise_ad = (float *) calloc(N, sizeof(float));
     cr_standard = (float *) calloc(N, sizeof(float));
     ci_standard = (float *) calloc(N, sizeof(float));
+    cr_standard_ad = (float *) calloc(N, sizeof(float));
+    ci_standard_ad = (float *) calloc(N, sizeof(float));
     cr_harmonic = (float *) calloc(N, sizeof(float));
     ci_harmonic = (float *) calloc(N, sizeof(float));
+    cr_harmonic_ad = (float *) calloc(N, sizeof(float));
+    ci_harmonic_ad = (float *) calloc(N, sizeof(float));
     pop_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_standard = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_harmonic = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_standard_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_harmonic_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cr_copy = (float *) calloc(N, sizeof(float));
-    ci_copy = (float *) calloc(N, sizeof(float));
     
     // Determine number of samples
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
@@ -418,13 +390,7 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(cr_nise, ci_nise, cr_standard, ci_standard, cr_harmonic, ci_harmonic, N);
-        copyvec(cr_nise, cr_copy, N);
-        copyvec(ci_nise, ci_copy, N);
-        matrix_on_vector(H_new, cr_copy, ci_copy, N);
-        float pop_copy = cr_copy[0] * cr_copy[0] + ci_copy[0] * ci_copy[0];
-        pop_nise_ad[0] += pop_copy;
-        pop_standard_ad[0] += pop_copy;
-        pop_harmonic_ad[0] += pop_copy;
+        reset_wavefn(cr_nise_ad, ci_nise_ad, cr_standard_ad, ci_standard_ad, cr_harmonic_ad, ci_harmonic_ad, N);
 
         // Start integrating the Schrödinger equation
         // NISE:
@@ -442,14 +408,49 @@ void pop_single_t2(t_non* non) {
             swaps(H_new, H_old, N);
 
             // Run NISE
-            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise, pop_nise, pop_nise_ad, t2);
+            // Site basis:
+            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+            pop_nise[t2 + 1] += cr_nise[0] * cr_nise[0] + ci_nise[0] * ci_nise[0];
+            
+            // Adiabatic basis:
+            // Transfer to site
+            matrix_on_vector(H_old, cr_nise_ad, ci_nise_ad, N);
+            // Propagate
+            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise_ad, ci_nise_ad);
+            // Transfer back to adiabatic basis
+            trans_matrix_on_vector(H_new, cr_nise_ad, ci_nise_ad, N);
+            pop_nise_ad[t2 + 1] += cr_nise_ad[0] * cr_nise_ad[0] + ci_nise_ad[0] * ci_nise_ad[0];
 
-            // Run Prezhdo
+            // Run NISE-DB with standard correction
+            // Adiabatic basis:
             copyvec(H_old, Hcopy, N2);
-            propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard, ci_standard, pop_standard, pop_standard_ad, t2);
+            propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard_ad, ci_standard_ad);
+            pop_standard_ad[t2 + 1] += cr_standard_ad[0]*cr_standard_ad[0] + ci_standard_ad[0]*ci_standard_ad[0];
 
-            // Run alt
-            propagate_harmonic(non, H_old, H_new, e, re_U, im_U, cr_harmonic, ci_harmonic, pop_harmonic, pop_harmonic_ad, t2);
+            // Site basis:
+            // Transfer to adiabatic basis
+            matrix_on_vector(H_old, cr_standard, ci_standard, N);
+            // Propagate
+            copyvec(H_old, Hcopy, N2);
+            propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard, ci_standard);
+            // Transfer back to site basis
+            trans_matrix_on_vector(H_new, cr_standard, ci_standard, N);
+            pop_standard[t2 + 1] += cr_standard[0]*cr_standard[0] + ci_standard[0]*ci_standard[0];
+
+            // Run NISE-DB with harmonic correction
+            // Adiabatic basis:
+            copyvec(H_old, Hcopy, N2);
+            propagate_harmonic(non, Hcopy, H_new, e, re_U, im_U, cr_harmonic_ad, ci_harmonic_ad);
+            pop_harmonic_ad[t2 + 1] += cr_harmonic_ad[0]*cr_harmonic_ad[0] + ci_harmonic_ad[0]*ci_harmonic_ad[0];
+
+            // Site basis:
+            // Transfer to adiabatic basis
+            matrix_on_vector(H_old, cr_harmonic, ci_harmonic, N);
+            // Propagate
+            propagate_harmonic(non, H_old, H_new, e, re_U, im_U, cr_harmonic, ci_harmonic);
+            // Transfer back to site basis
+            trans_matrix_on_vector(H_new, cr_harmonic, ci_harmonic, N);
+            pop_harmonic[t2 + 1] += cr_harmonic[0]*cr_harmonic[0] + ci_harmonic[0]*ci_harmonic[0];
         }
     }
     
@@ -460,10 +461,9 @@ void pop_single_t2(t_non* non) {
 
     free(Hamil_i_e), free(H_new), free(H_old), free(Hcopy);
     free(re_U), free(im_U), free(e);
-    free(cr_nise), free(ci_nise);
-    free(cr_standard), free(ci_standard);
-    free(cr_harmonic), free(ci_harmonic);
+    free(cr_nise), free(ci_nise); free(cr_nise_ad); free(ci_nise_ad);
+    free(cr_standard), free(ci_standard); free(cr_standard_ad); free(ci_standard_ad);
+    free(cr_harmonic), free(ci_harmonic); free(cr_harmonic_ad); free(ci_harmonic_ad);
     free(pop_nise), free(pop_standard), free(pop_harmonic);
     free(pop_nise_ad), free(pop_standard_ad), free(pop_harmonic_ad);
-    free(cr_copy), free(ci_copy);
 }
