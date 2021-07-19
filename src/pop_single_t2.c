@@ -33,8 +33,7 @@ void reset_wavefn(float* cr_nise, float* ci_nise, float* cr_standard, float* ci_
     clearvec(ci_standard, N);
     clearvec(cr_harmonic, N);
     clearvec(ci_harmonic, N);
-    cr_nise[0] = cr_standard[0] = cr_harmonic[0] = 1.0;
-    ci_nise[0] = ci_standard[0] = ci_harmonic[0] = 0.0;
+    cr_nise[1] = cr_standard[1] = cr_harmonic[1] = 1.0;
 }
 
 void propagate_NISE(
@@ -113,7 +112,7 @@ void propagate_standard(
         H_old[i + N*i] = 0;
         for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
-            float boltz = exp(-ediff / kBT);
+            float boltz = exp(ediff / kBT);
             qc_ij = sqrt(2 / (1 + boltz));
             qc_ji = qc_ij * sqrt(boltz);
             // Correction by Kleinekathofer
@@ -154,71 +153,198 @@ void propagate_standard(
 
 void propagate_harmonic(
     t_non *non, 
-    float *H_old, 
+    float *H_avg,
     float *H_new, 
-    float *e, 
+    float *e_avg,
+    float *e,
     float *re_U, 
-    float *im_U,
+    float *im_U, 
     float *cr, 
     float *ci
 ) {
     float f;
-    int index, N;
+    int index, N, N2;
+    float *ecopy;
+    float *Hcopy;
+    float *Urcopy;
+    float *Uicopy;
     float qc_ij, qc_ji, ediff;
     float re, im;
     float* abs;
     int i, j, k;
     
     N = non->singles;
+    N2 = N*N;
     f = non->deltat * icm2ifs * twoPi;
     float kBT=non->temperature*0.695; // Kelvin to cm-1
 
     abs = (float *)calloc(N, sizeof(float));
+    Hcopy = (float *) calloc(N2, sizeof(float));
+    ecopy = (float *) calloc(N, sizeof(float));
+    Urcopy = (float *) calloc(N, sizeof(float));
+    Uicopy = (float *) calloc(N, sizeof(float));
+    clearvec(Hcopy, N2);
+    clearvec(Urcopy, N);
+    clearvec(Uicopy, N);
+
+    // Transform to average eigenbasis
+    trans_matrix_on_vector(H_avg, cr, ci, N);
 
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
 
-    // Exponentiate [U=exp(-i/h H dt)]
+    // Find back site basis perturbation (only diagonals!)
     for (i = 0; i < N; i++) {
-        re_U[i] = cos(e[i] * f);
-        im_U[i] = -sin(e[i] * f);
+        for (k = 0; k < N; k++) {
+            ecopy[i] += e[k] * H_new[i + N*k] * H_new[i + N*k];
+            ecopy[i] -= e_avg[k] * H_avg[i + N*k] * H_avg[i + N*k];
+        }
     }
 
-    // Compute unadjusted non-adiabatic coupling
-    matrix_on_matrix(H_new, H_old, N);
+    // printf("Perturbation:\n");
+    // for (i = 0; i < N; i++) {
+    //     printf("%f ", ecopy[i]);
+    // }
+    // printf("\n");
+
+    // Find back average eigenbasis perturbation
+    for (i = 0; i < N; i++) {
+        // Diagonals
+        for (k = 0; k < N; k++) {
+            Hcopy[i + N*i] += ecopy[k] * H_avg[i + N*k] * H_avg[i + N*k];
+        }
+        for (j = 0; j < i; j++) {
+            for (k = 0; k < N; k++) {
+                Hcopy[i + N*j] += ecopy[k] * H_avg[i + N*k] * H_avg[i + N*j];
+            }
+            Hcopy[j + N*i] = Hcopy[i + N*j];
+        }
+    }
+    // printf("Perturbation Hamiltonian:\n");
+    // for (i = 0; i < N; i++) {
+    //     for (j = 0; j < N; j++) {
+    //         printf("%f ", Hcopy[i + N*j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
+
+    // Exponentiate average Hamiltonian [U=exp(-i/h H dt)]
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos((e_avg[i] + Hcopy[i + N*i]) * f);
+        im_U[i] = -sin((e_avg[i] + Hcopy[i + N*i]) * f);
+    }
 
     // Compute temperature adjustments
     for (i = 0; i < N; i++) {
         // Reset diagonal
-        H_old[i + N*i] = 0;
+        Hcopy[i + N*i] = 0;
         for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
-            float boltz = exp(-ediff / kBT);
-            qc_ij = sqrt(ediff / kBT / (1 - boltz));
+            float boltz = exp(ediff / kBT);
+            qc_ij = sqrt(2 / (1 + boltz));
             qc_ji = qc_ij * sqrt(boltz);
             // Correction by Kleinekathofer
             if (abs[i] - abs[j] != 0) {
-                H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
-                H_old[i + N*j] /= abs[j] - abs[i];
+                Hcopy[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
+                Hcopy[i + N*j] /= abs[j] - abs[i];
             } else {
-                H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
+                Hcopy[i + N*j] *= (qc_ij - qc_ji) / 2;
             }
-            H_old[j + N*i] = -H_old[i + N*j];
+            Hcopy[j + N*i] = Hcopy[i + N*j];
         }
     }
-    
-    // Exponentiate the non-adiabatic couplings
-    matrix_exp(H_old, N);
-    
-    // Multiply with (real) non-adiabatic propagator
-    trans_matrix_on_vector(H_old, cr, ci, N);
+
+    // Exponentiate the couplings
+    diagonalizeLPD(Hcopy, ecopy, N);
+    // Multiply with adjusted couplings.
+    matrix_on_vector(Hcopy, cr, ci, N);
+    for (i = 0; i < N; i++) {
+        Urcopy[i] = cos(ecopy[i] * f);
+        Uicopy[i] = -sin(ecopy[i] * f);
+    }
+    vector_on_vector(Urcopy, Uicopy, cr, ci, N);
+    trans_matrix_on_vector(Hcopy, cr, ci, N);
+
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
+    
+    // Transform back to site basis
+    matrix_on_vector(H_avg, cr, ci, N);
 
     free(abs);
 }
+
+// void propagate_harmonic(
+//     t_non *non, 
+//     float *H_old, 
+//     float *H_new, 
+//     float *e, 
+//     float *re_U, 
+//     float *im_U,
+//     float *cr, 
+//     float *ci
+// ) {
+//     float f;
+//     int index, N;
+//     float qc_ij, qc_ji, ediff;
+//     float re, im;
+//     float* abs;
+//     int i, j, k;
+//     
+//     N = non->singles;
+//     f = non->deltat * icm2ifs * twoPi;
+//     float kBT=non->temperature*0.695; // Kelvin to cm-1
+// 
+//     abs = (float *)calloc(N, sizeof(float));
+// 
+//     // Compute absolute values of the wavefunction coeffs
+//     for (i = 0; i < N; i++) {
+//         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
+//     }
+// 
+//     // Exponentiate [U=exp(-i/h H dt)]
+//     for (i = 0; i < N; i++) {
+//         re_U[i] = cos(e[i] * f);
+//         im_U[i] = -sin(e[i] * f);
+//     }
+// 
+//     // Compute unadjusted non-adiabatic coupling
+//     matrix_on_matrix(H_new, H_old, N);
+// 
+//     // Compute temperature adjustments
+//     for (i = 0; i < N; i++) {
+//         // Reset diagonal
+//         H_old[i + N*i] = 0;
+//         for (j = 0; j < i; j++) {
+//             ediff = e[i] - e[j];
+//             float boltz = exp(ediff / kBT);
+//             // qc_ij = sqrt(ediff / kBT / (1 - boltz));
+//             qc_ij = sqrt(2 / (1+boltz));
+//             qc_ji = qc_ij * sqrt(boltz);
+//             // Correction by Kleinekathofer
+//             if (abs[i] - abs[j] != 0) {
+//                 H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
+//                 // H_old[i + N*j] /= abs[j] - abs[i];
+//             } else {
+//                 H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
+//             }
+//             H_old[j + N*i] = -H_old[i + N*j];
+//         }
+//     }
+//     
+//     // Exponentiate the non-adiabatic couplings
+//     matrix_exp(H_old, N);
+//     
+//     // Multiply with (real) non-adiabatic propagator
+//     trans_matrix_on_vector(H_old, cr, ci, N);
+//     // Multiply with matrix exponent
+//     vector_on_vector(re_U,im_U,cr,ci,N);
+// 
+//     free(abs);
+// }
 
 void row_swap(float* a, int row1, int row2, int N) {
     for (int i = 0; i < N; i++) {
@@ -310,6 +436,8 @@ void pop_single_t2(t_non* non) {
     int sampleCount;
     int i, j, k;
     float *Hamil_i_e;
+    float *H_avg;
+    float *e_avg;
     float *H_new;
     float *H_old;
     float *Hcopy;
@@ -336,6 +464,8 @@ void pop_single_t2(t_non* non) {
     float *pop_harmonic_ad;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
+    H_avg = (float *) calloc(N2, sizeof(float));
+    e_avg = (float *) calloc(N, sizeof(float));
     H_new = (float *) calloc(N2, sizeof(float));
     H_old = (float *) calloc(N2, sizeof(float));
     Hcopy = (float *)calloc(N2, sizeof(float));
@@ -374,6 +504,36 @@ void pop_single_t2(t_non* non) {
         exit(1);
     }
 
+    // Find average Hamiltonian
+    clearvec(H_avg, N2);
+    for (int t2 = 0; t2 < (non->length - non->tmax2 - 1); t2++) {
+        if (read_He(non, Hamil_i_e, H_traj, t2) != 1) {
+            printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
+            exit(1);
+        }
+        int a, b, c;
+        // Build square Hamiltonian from triagonal matrix
+        for (a = 0; a < N; a++) {
+            H_avg[a + N * a] += Hamil_i_e[a + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2); // Diagonal
+            for (b = a + 1; b < N; b++) {
+                H_avg[a + N * b] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2);
+                H_avg[b + N * a] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2);
+            }
+        }
+    }
+
+    printf("Average Hamiltonian:\n");
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", H_avg[i + N*j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    
+    // Diagonalise Hamiltonian
+    diagonalizeLPD(H_avg, e_avg, N);
+
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
         if (samples % 100 == 0) {
@@ -410,7 +570,7 @@ void pop_single_t2(t_non* non) {
             // Run NISE
             // Site basis:
             propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
-            pop_nise[t2 + 1] += cr_nise[0] * cr_nise[0] + ci_nise[0] * ci_nise[0];
+            pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
             
             // Adiabatic basis:
             // Transfer to site
@@ -419,13 +579,13 @@ void pop_single_t2(t_non* non) {
             propagate_NISE(non, H_new, e, re_U, im_U, cr_nise_ad, ci_nise_ad);
             // Transfer back to adiabatic basis
             trans_matrix_on_vector(H_new, cr_nise_ad, ci_nise_ad, N);
-            pop_nise_ad[t2 + 1] += cr_nise_ad[0] * cr_nise_ad[0] + ci_nise_ad[0] * ci_nise_ad[0];
+            pop_nise_ad[t2 + 1] += cr_nise_ad[1] * cr_nise_ad[1] + ci_nise_ad[1] * ci_nise_ad[1];
 
             // Run NISE-DB with standard correction
             // Adiabatic basis:
             copyvec(H_old, Hcopy, N2);
             propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard_ad, ci_standard_ad);
-            pop_standard_ad[t2 + 1] += cr_standard_ad[0]*cr_standard_ad[0] + ci_standard_ad[0]*ci_standard_ad[0];
+            pop_standard_ad[t2 + 1] += cr_standard_ad[1]*cr_standard_ad[1] + ci_standard_ad[1]*ci_standard_ad[1];
 
             // Site basis:
             // Transfer to adiabatic basis
@@ -435,22 +595,21 @@ void pop_single_t2(t_non* non) {
             propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard, ci_standard);
             // Transfer back to site basis
             trans_matrix_on_vector(H_new, cr_standard, ci_standard, N);
-            pop_standard[t2 + 1] += cr_standard[0]*cr_standard[0] + ci_standard[0]*ci_standard[0];
+            pop_standard[t2 + 1] += cr_standard[1]*cr_standard[1] + ci_standard[1]*ci_standard[1];
 
             // Run NISE-DB with harmonic correction
-            // Adiabatic basis:
-            copyvec(H_old, Hcopy, N2);
-            propagate_harmonic(non, Hcopy, H_new, e, re_U, im_U, cr_harmonic_ad, ci_harmonic_ad);
-            pop_harmonic_ad[t2 + 1] += cr_harmonic_ad[0]*cr_harmonic_ad[0] + ci_harmonic_ad[0]*ci_harmonic_ad[0];
+            // site basis:
+            propagate_harmonic(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_harmonic, ci_harmonic);
+            pop_harmonic[t2 + 1] += cr_harmonic[1]*cr_harmonic[1] + ci_harmonic[1]*ci_harmonic[1];
 
-            // Site basis:
-            // Transfer to adiabatic basis
-            matrix_on_vector(H_old, cr_harmonic, ci_harmonic, N);
+            // Adiabatic basis:
+            // Transfer to site basis
+            trans_matrix_on_vector(H_new, cr_harmonic_ad, ci_harmonic_ad, N);
             // Propagate
-            propagate_harmonic(non, H_old, H_new, e, re_U, im_U, cr_harmonic, ci_harmonic);
+            propagate_harmonic(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_harmonic_ad, ci_harmonic_ad);
             // Transfer back to site basis
-            trans_matrix_on_vector(H_new, cr_harmonic, ci_harmonic, N);
-            pop_harmonic[t2 + 1] += cr_harmonic[0]*cr_harmonic[0] + ci_harmonic[0]*ci_harmonic[0];
+            matrix_on_vector(H_new, cr_harmonic_ad, ci_harmonic_ad, N);
+            pop_harmonic_ad[t2 + 1] += cr_harmonic_ad[1]*cr_harmonic_ad[1] + ci_harmonic_ad[1]*ci_harmonic_ad[1];
         }
     }
     
@@ -459,11 +618,11 @@ void pop_single_t2(t_non* non) {
     fn = "pop_t2_ad.txt";
     pop_print(fn, pop_nise_ad, pop_standard_ad, pop_harmonic_ad, non, sampleCount);
 
-    free(Hamil_i_e), free(H_new), free(H_old), free(Hcopy);
-    free(re_U), free(im_U), free(e);
-    free(cr_nise), free(ci_nise); free(cr_nise_ad); free(ci_nise_ad);
-    free(cr_standard), free(ci_standard); free(cr_standard_ad); free(ci_standard_ad);
-    free(cr_harmonic), free(ci_harmonic); free(cr_harmonic_ad); free(ci_harmonic_ad);
+    free(Hamil_i_e), free(H_new), free(H_old), free(H_avg), free(Hcopy);
+    free(re_U), free(im_U), free(e), free(e_avg);
+    free(cr_nise), free(ci_nise), free(cr_nise_ad), free(ci_nise_ad);
+    free(cr_standard), free(ci_standard), free(cr_standard_ad), free(ci_standard_ad);
+    free(cr_harmonic), free(ci_harmonic), free(cr_harmonic_ad), free(ci_harmonic_ad);
     free(pop_nise), free(pop_standard), free(pop_harmonic);
     free(pop_nise_ad), free(pop_standard_ad), free(pop_harmonic_ad);
 }
