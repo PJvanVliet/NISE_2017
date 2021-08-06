@@ -26,6 +26,23 @@ void pop_print(char* filename, float* pop_nise, float* pop_standard, float* pop_
     fclose(out);
 }
 
+void coh_print(char* filename, float* cohr_nise, float* cohi_nise, float* cohr_standard, float* cohi_standard, float* cohr_harmonic, float* cohi_harmonic, t_non* non, int sampleCount) {
+    FILE* out = fopen(filename, "w");
+    for (int t2 = 0; t2 < non->tmax2 + 1; t2++) {
+            cohr_nise[t2] /= sampleCount;
+            cohr_standard[t2] /= sampleCount;
+            cohr_harmonic[t2] /= sampleCount;
+            cohi_nise[t2] /= sampleCount;
+            cohi_standard[t2] /= sampleCount;
+            cohi_harmonic[t2] /= sampleCount;
+            cohr_nise[t2] = sqrt(cohr_nise[t2]*cohr_nise[t2] + cohi_nise[t2]*cohi_nise[t2]);
+            cohr_standard[t2] = sqrt(cohr_standard[t2]*cohr_standard[t2] + cohi_standard[t2]*cohi_standard[t2]);
+            cohr_harmonic[t2] = sqrt(cohr_harmonic[t2]*cohr_harmonic[t2] + cohi_harmonic[t2]*cohi_harmonic[t2]);
+            fprintf(out, "%f %e %e %e\n", t2 * non->deltat, cohr_nise[t2], cohr_standard[t2], cohr_harmonic[t2]);
+    }
+    fclose(out);
+}
+
 void reset_wavefn(float* cr_nise, float* ci_nise, float* cr_standard, float* ci_standard, float* cr_harmonic, float* ci_harmonic, int N) {
     clearvec(cr_nise, N);
     clearvec(ci_nise, N);
@@ -462,6 +479,18 @@ void pop_single_t2(t_non* non) {
     float *pop_nise_ad;
     float *pop_standard_ad;
     float *pop_harmonic_ad;
+    float *cohr_nise;
+    float *cohr_standard;
+    float *cohr_harmonic;
+    float *cohr_nise_ad;
+    float *cohr_standard_ad;
+    float *cohr_harmonic_ad;
+    float *cohi_nise;
+    float *cohi_standard;
+    float *cohi_harmonic;
+    float *cohi_nise_ad;
+    float *cohi_standard_ad;
+    float *cohi_harmonic_ad;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
@@ -490,6 +519,18 @@ void pop_single_t2(t_non* non) {
     pop_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_standard_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_harmonic_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_standard = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_harmonic = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_standard_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohr_harmonic_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_standard = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_harmonic = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_standard_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
+    cohi_harmonic_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     
     // Determine number of samples
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
@@ -571,6 +612,8 @@ void pop_single_t2(t_non* non) {
             // Site basis:
             propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
             pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
+            cohr_nise[t2 + 1] += cr_nise[0] * cr_nise[1] + ci_nise[0] * ci_nise[1];
+            cohi_nise[t2 + 1] += ci_nise[0] * ci_nise[1] - ci_nise[1] * cr_nise[0];
             
             // Adiabatic basis:
             // Transfer to site
@@ -580,12 +623,16 @@ void pop_single_t2(t_non* non) {
             // Transfer back to adiabatic basis
             trans_matrix_on_vector(H_new, cr_nise_ad, ci_nise_ad, N);
             pop_nise_ad[t2 + 1] += cr_nise_ad[1] * cr_nise_ad[1] + ci_nise_ad[1] * ci_nise_ad[1];
+            cohr_nise_ad[t2 + 1] += cr_nise_ad[0] * cr_nise_ad[1] + ci_nise_ad[0] * ci_nise_ad[1];
+            cohi_nise_ad[t2 + 1] += ci_nise_ad[0] * cr_nise_ad[1] - ci_nise_ad[1] * cr_nise_ad[0];
 
             // Run NISE-DB with standard correction
             // Adiabatic basis:
             copyvec(H_old, Hcopy, N2);
             propagate_standard(non, Hcopy, H_new, e, re_U, im_U, cr_standard_ad, ci_standard_ad);
             pop_standard_ad[t2 + 1] += cr_standard_ad[1]*cr_standard_ad[1] + ci_standard_ad[1]*ci_standard_ad[1];
+            cohr_standard_ad[t2 + 1] += cr_standard_ad[0] * cr_standard_ad[1] + ci_standard_ad[0] * ci_standard_ad[1];
+            cohi_standard_ad[t2 + 1] += ci_standard_ad[0] * cr_standard_ad[1] - ci_standard_ad[1] * cr_standard_ad[0];
 
             // Site basis:
             // Transfer to adiabatic basis
@@ -596,11 +643,15 @@ void pop_single_t2(t_non* non) {
             // Transfer back to site basis
             trans_matrix_on_vector(H_new, cr_standard, ci_standard, N);
             pop_standard[t2 + 1] += cr_standard[1]*cr_standard[1] + ci_standard[1]*ci_standard[1];
+            cohr_standard[t2 + 1] += cr_standard[0] * cr_standard[1] + ci_standard[0] * ci_standard[1];
+            cohi_standard[t2 + 1] += ci_standard[0] * cr_standard[1] - ci_standard[1] * cr_standard[0];
 
             // Run NISE-DB with harmonic correction
             // site basis:
             propagate_harmonic(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_harmonic, ci_harmonic);
             pop_harmonic[t2 + 1] += cr_harmonic[1]*cr_harmonic[1] + ci_harmonic[1]*ci_harmonic[1];
+            cohr_harmonic[t2 + 1] += cr_harmonic[0] * cr_harmonic[1] + ci_harmonic[0] * ci_harmonic[1];
+            cohi_harmonic[t2 + 1] += ci_harmonic[0] * cr_harmonic[1] - ci_harmonic[1] * cr_harmonic[0];
 
             // Adiabatic basis:
             // Transfer to site basis
@@ -610,6 +661,8 @@ void pop_single_t2(t_non* non) {
             // Transfer back to site basis
             matrix_on_vector(H_new, cr_harmonic_ad, ci_harmonic_ad, N);
             pop_harmonic_ad[t2 + 1] += cr_harmonic_ad[1]*cr_harmonic_ad[1] + ci_harmonic_ad[1]*ci_harmonic_ad[1];
+            cohr_harmonic_ad[t2 + 1] += cr_harmonic_ad[0] * cr_harmonic_ad[1] + ci_harmonic_ad[0] * ci_harmonic_ad[1];
+            cohi_harmonic_ad[t2 + 1] += ci_harmonic_ad[0] * cr_harmonic_ad[1] - ci_harmonic_ad[1] * cr_harmonic_ad[0];
         }
     }
     
@@ -617,6 +670,10 @@ void pop_single_t2(t_non* non) {
     pop_print(fn, pop_nise, pop_standard, pop_harmonic, non, sampleCount);
     fn = "pop_t2_ad.txt";
     pop_print(fn, pop_nise_ad, pop_standard_ad, pop_harmonic_ad, non, sampleCount);
+    fn = "coh_t2.txt";
+    coh_print(fn, cohr_nise, cohi_nise, cohr_standard, cohi_standard, cohr_harmonic, cohi_harmonic, non, sampleCount);
+    fn = "coh_t2_ad.txt";
+    coh_print(fn, cohr_nise_ad, cohi_nise_ad, cohr_standard_ad, cohi_standard_ad, cohr_harmonic_ad, cohi_harmonic_ad, non, sampleCount);
 
     free(Hamil_i_e), free(H_new), free(H_old), free(H_avg), free(Hcopy);
     free(re_U), free(im_U), free(e), free(e_avg);
@@ -625,4 +682,8 @@ void pop_single_t2(t_non* non) {
     free(cr_harmonic), free(ci_harmonic), free(cr_harmonic_ad), free(ci_harmonic_ad);
     free(pop_nise), free(pop_standard), free(pop_harmonic);
     free(pop_nise_ad), free(pop_standard_ad), free(pop_harmonic_ad);
+    free(cohr_nise), free(cohr_standard), free(cohr_harmonic);
+    free(cohi_nise), free(cohi_standard), free(cohi_harmonic);
+    free(cohr_nise_ad), free(cohr_standard_ad), free(cohr_harmonic_ad);
+    free(cohi_nise_ad), free(cohi_standard_ad), free(cohi_harmonic_ad);
 }
