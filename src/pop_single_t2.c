@@ -411,12 +411,12 @@ void pop_single_t2(t_non* non) {
 
     // Find average Hamiltonian
     clearvec(H_avg, N2);
+    int a, b;
     for (int t2 = 0; t2 < (non->length - non->tmax2 - 1); t2++) {
         if (read_He(non, Hamil_i_e, H_traj, t2) != 1) {
             printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
             exit(1);
         }
-        int a, b;
         // Build square Hamiltonian from triagonal matrix
         for (a = 0; a < N; a++) {
             H_avg[a + N * a] += Hamil_i_e[a + N * a - (a * (a + 1)) / 2]; // Diagonal
