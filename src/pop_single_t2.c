@@ -187,9 +187,6 @@ void propagate_nise_dbb(
     clearvec(Urcopy, N);
     clearvec(Uicopy, N);
 
-    // Transform to average eigenbasis
-    trans_matrix_on_vector(H_avg, cr, ci, N);
-
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
@@ -202,12 +199,6 @@ void propagate_nise_dbb(
             ecopy[i] -= e_avg[k] * H_avg[i + N*k] * H_avg[i + N*k];
         }
     }
-
-    // printf("Perturbation:\n");
-    // for (i = 0; i < N; i++) {
-    //     printf("%f ", ecopy[i]);
-    // }
-    // printf("\n");
 
     // Find back average eigenbasis perturbation
     for (i = 0; i < N; i++) {
@@ -222,14 +213,6 @@ void propagate_nise_dbb(
             Hcopy[j + N*i] = Hcopy[i + N*j];
         }
     }
-    // printf("Perturbation Hamiltonian:\n");
-    // for (i = 0; i < N; i++) {
-    //     for (j = 0; j < N; j++) {
-    //         printf("%f ", Hcopy[i + N*j]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\n");
 
     // Exponentiate average Hamiltonian [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
@@ -270,9 +253,6 @@ void propagate_nise_dbb(
 
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
-    
-    // Transform back to site basis
-    matrix_on_vector(H_avg, cr, ci, N);
 
     free(abs);
 }
@@ -377,34 +357,19 @@ void pop_single_t2(t_non* non) {
     float *e;
     float *cr_nise;
     float *ci_nise;
-    float *cr_nise_ad;
-    float *ci_nise_ad;
     float *cr_nise_dba;
     float *ci_nise_dba;
-    float *ci_nise_dba_ad;
-    float *cr_nise_dba_ad;
     float *cr_nise_dbb;
     float *ci_nise_dbb;
-    float *cr_nise_dbb_ad;
-    float *ci_nise_dbb_ad;
     float *pop_nise;
     float *pop_nise_dba;
     float *pop_nise_dbb;
-    float *pop_nise_ad;
-    float *pop_nise_dba_ad;
-    float *pop_nise_dbb_ad;
     float *cohr_nise;
     float *cohr_nise_dba;
     float *cohr_nise_dbb;
-    float *cohr_nise_ad;
-    float *cohr_nise_dba_ad;
-    float *cohr_nise_dbb_ad;
     float *cohi_nise;
     float *cohi_nise_dba;
     float *cohi_nise_dbb;
-    float *cohi_nise_ad;
-    float *cohi_nise_dba_ad;
-    float *cohi_nise_dbb_ad;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
@@ -417,34 +382,19 @@ void pop_single_t2(t_non* non) {
     e = (float *) calloc(N, sizeof(float));
     cr_nise = (float *) calloc(N, sizeof(float));
     ci_nise = (float *) calloc(N, sizeof(float));
-    cr_nise_ad = (float *) calloc(N, sizeof(float));
-    ci_nise_ad = (float *) calloc(N, sizeof(float));
     cr_nise_dba = (float *) calloc(N, sizeof(float));
     ci_nise_dba = (float *) calloc(N, sizeof(float));
-    cr_nise_dba_ad = (float *) calloc(N, sizeof(float));
-    ci_nise_dba_ad = (float *) calloc(N, sizeof(float));
     cr_nise_dbb = (float *) calloc(N, sizeof(float));
     ci_nise_dbb = (float *) calloc(N, sizeof(float));
-    cr_nise_dbb_ad = (float *) calloc(N, sizeof(float));
-    ci_nise_dbb_ad = (float *) calloc(N, sizeof(float));
     pop_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
     pop_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    pop_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    pop_nise_dba_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    pop_nise_dbb_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohr_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohr_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohr_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohr_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohr_nise_dba_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohr_nise_dbb_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohi_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohi_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
     cohi_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohi_nise_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohi_nise_dba_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    cohi_nise_dbb_ad = (float *) calloc(non->tmax2 + 1, sizeof(float));
     
     // Determine number of samples
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
@@ -466,26 +416,25 @@ void pop_single_t2(t_non* non) {
             printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
             exit(1);
         }
-        int a, b, c;
+        int a, b;
         // Build square Hamiltonian from triagonal matrix
         for (a = 0; a < N; a++) {
-            H_avg[a + N * a] += Hamil_i_e[a + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2); // Diagonal
+            H_avg[a + N * a] += Hamil_i_e[a + N * a - (a * (a + 1)) / 2]; // Diagonal
             for (b = a + 1; b < N; b++) {
-                H_avg[a + N * b] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2);
-                H_avg[b + N * a] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2] / (non->length - non->tmax2);
+                H_avg[a + N * b] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2];
+                H_avg[b + N * a] += Hamil_i_e[b + N * a - (a * (a + 1)) / 2];
             }
         }
     }
 
-    printf("Average Hamiltonian:\n");
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            printf("%f ", H_avg[i + N*j]);
+    for (a = 0; a < N; a++) {
+        H_avg[a + N * a] /= (non->length - non->tmax2); // Diagonal
+        for (b = a + 1; b < N; b++) {
+            H_avg[a + N * b] /= (non->length - non->tmax2);
+            H_avg[b + N * a] /= (non->length - non->tmax2);
         }
-        printf("\n");
     }
-    printf("\n");
-    
+
     // Diagonalise Hamiltonian
     diagonalizeLPD(H_avg, e_avg, N);
 
@@ -505,10 +454,8 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(cr_nise, ci_nise, cr_nise_dba, ci_nise_dba, cr_nise_dbb, ci_nise_dbb, N);
-        reset_wavefn(cr_nise_ad, ci_nise_ad, cr_nise_dba_ad, ci_nise_dba_ad, cr_nise_dbb_ad, ci_nise_dbb_ad, N);
 
-        // Start integrating the Schrödinger equation
-        // NISE:
+        // Start NISE procedure
         for (int t2 = 0; t2 < non->tmax2; t2++) {
             int tm = ti + t2 + 1;
             // Copy old Hamiltonian
@@ -522,82 +469,135 @@ void pop_single_t2(t_non* non) {
             // Check if we need to perform any swaps, to maximise overlap
             swaps(H_new, H_old, N);
 
-            // Run NISE
-            // Site basis:
-            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
-            pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
-            cohr_nise[t2 + 1] += cr_nise[0] * cr_nise[1] + ci_nise[0] * ci_nise[1];
-            cohi_nise[t2 + 1] += ci_nise[0] * ci_nise[1] - ci_nise[1] * cr_nise[0];
-            
-            // Adiabatic basis:
-            // Transfer to site
-            matrix_on_vector(H_old, cr_nise_ad, ci_nise_ad, N);
-            // Propagate
-            propagate_NISE(non, H_new, e, re_U, im_U, cr_nise_ad, ci_nise_ad);
-            // Transfer back to adiabatic basis
-            trans_matrix_on_vector(H_new, cr_nise_ad, ci_nise_ad, N);
-            pop_nise_ad[t2 + 1] += cr_nise_ad[1] * cr_nise_ad[1] + ci_nise_ad[1] * ci_nise_ad[1];
-            cohr_nise_ad[t2 + 1] += cr_nise_ad[0] * cr_nise_ad[1] + ci_nise_ad[0] * ci_nise_ad[1];
-            cohi_nise_ad[t2 + 1] += ci_nise_ad[0] * cr_nise_ad[1] - ci_nise_ad[1] * cr_nise_ad[0];
+            if (!strcmp(non->basis, "Local")) {
+                // NISE
+                propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+                pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
+                cohr_nise[t2 + 1] += cr_nise[0] * cr_nise[1] + ci_nise[0] * ci_nise[1];
+                cohi_nise[t2 + 1] += ci_nise[0] * ci_nise[1] - ci_nise[1] * cr_nise[0];
+                
+                // NISE-DBa
+                // Transfer to adiabatic basis
+                matrix_on_vector(H_old, cr_nise_dba, ci_nise_dba, N);
+                // Propagate
+                copyvec(H_old, Hcopy, N2);
+                propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                // Transfer back to site basis
+                trans_matrix_on_vector(H_new, cr_nise_dba, ci_nise_dba, N);
+                pop_nise_dba[t2 + 1] += cr_nise_dba[1]*cr_nise_dba[1] + ci_nise_dba[1]*ci_nise_dba[1];
+                cohr_nise_dba[t2 + 1] += cr_nise_dba[0] * cr_nise_dba[1] + ci_nise_dba[0] * ci_nise_dba[1];
+                cohi_nise_dba[t2 + 1] += ci_nise_dba[0] * cr_nise_dba[1] - ci_nise_dba[1] * cr_nise_dba[0];
 
-            // Run NISE-DB with correction in instantaneous eigenbasis
-            // Adiabatic basis:
-            copyvec(H_old, Hcopy, N2);
-            propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba_ad, ci_nise_dba_ad);
-            pop_nise_dba_ad[t2 + 1] += cr_nise_dba_ad[1]*cr_nise_dba_ad[1] + ci_nise_dba_ad[1]*ci_nise_dba_ad[1];
-            cohr_nise_dba_ad[t2 + 1] += cr_nise_dba_ad[0] * cr_nise_dba_ad[1] + ci_nise_dba_ad[0] * ci_nise_dba_ad[1];
-            cohi_nise_dba_ad[t2 + 1] += ci_nise_dba_ad[0] * cr_nise_dba_ad[1] - ci_nise_dba_ad[1] * cr_nise_dba_ad[0];
+                // NISE-DBb
+                // Transform to average eigenbasis
+                trans_matrix_on_vector(H_avg, cr_nise_dbb, ci_nise_dbb, N);
+                // Propagate
+                propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
+                // Transform back to site basis
+                matrix_on_vector(H_avg, cr_nise_dbb, ci_nise_dbb, N);
+                pop_nise_dbb[t2 + 1] += cr_nise_dbb[1]*cr_nise_dbb[1] + ci_nise_dbb[1]*ci_nise_dbb[1];
+                cohr_nise_dbb[t2 + 1] += cr_nise_dbb[0] * cr_nise_dbb[1] + ci_nise_dbb[0] * ci_nise_dbb[1];
+                cohi_nise_dbb[t2 + 1] += ci_nise_dbb[0] * cr_nise_dbb[1] - ci_nise_dbb[1] * cr_nise_dbb[0];
 
-            // Site basis:
-            // Transfer to adiabatic basis
-            matrix_on_vector(H_old, cr_nise_dba, ci_nise_dba, N);
-            // Propagate
-            copyvec(H_old, Hcopy, N2);
-            propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
-            // Transfer back to site basis
-            trans_matrix_on_vector(H_new, cr_nise_dba, ci_nise_dba, N);
-            pop_nise_dba[t2 + 1] += cr_nise_dba[1]*cr_nise_dba[1] + ci_nise_dba[1]*ci_nise_dba[1];
-            cohr_nise_dba[t2 + 1] += cr_nise_dba[0] * cr_nise_dba[1] + ci_nise_dba[0] * ci_nise_dba[1];
-            cohi_nise_dba[t2 + 1] += ci_nise_dba[0] * cr_nise_dba[1] - ci_nise_dba[1] * cr_nise_dba[0];
+            } else if (!strcmp(non->basis, "Adiabatic")) {
+                // NISE
+                // Transfer to site
+                matrix_on_vector(H_old, cr_nise, ci_nise, N);
+                // Propagate
+                propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+                // Transfer back to adiabatic basis
+                trans_matrix_on_vector(H_new, cr_nise, ci_nise, N);
+                pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
+                cohr_nise[t2 + 1] += cr_nise[0] * cr_nise[1] + ci_nise[0] * ci_nise[1];
+                cohi_nise[t2 + 1] += ci_nise[0] * cr_nise[1] - ci_nise[1] * cr_nise[0];
 
-            // Run NISE-DB with correction in average eigenbasis
-            // site basis:
-            propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
-            pop_nise_dbb[t2 + 1] += cr_nise_dbb[1]*cr_nise_dbb[1] + ci_nise_dbb[1]*ci_nise_dbb[1];
-            cohr_nise_dbb[t2 + 1] += cr_nise_dbb[0] * cr_nise_dbb[1] + ci_nise_dbb[0] * ci_nise_dbb[1];
-            cohi_nise_dbb[t2 + 1] += ci_nise_dbb[0] * cr_nise_dbb[1] - ci_nise_dbb[1] * cr_nise_dbb[0];
+                // NISE-DBa
+                copyvec(H_old, Hcopy, N2);
+                propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                pop_nise_dba[t2 + 1] += cr_nise_dba[1]*cr_nise_dba[1] + ci_nise_dba[1]*ci_nise_dba[1];
+                cohr_nise_dba[t2 + 1] += cr_nise_dba[0] * cr_nise_dba[1] + ci_nise_dba[0] * ci_nise_dba[1];
+                cohi_nise_dba[t2 + 1] += ci_nise_dba[0] * cr_nise_dba[1] - ci_nise_dba[1] * cr_nise_dba[0];
 
-            // Adiabatic basis:
-            // Transfer to site basis
-            trans_matrix_on_vector(H_new, cr_nise_dbb_ad, ci_nise_dbb_ad, N);
-            // Propagate
-            propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb_ad, ci_nise_dbb_ad);
-            // Transfer back to site basis
-            matrix_on_vector(H_new, cr_nise_dbb_ad, ci_nise_dbb_ad, N);
-            pop_nise_dbb_ad[t2 + 1] += cr_nise_dbb_ad[1]*cr_nise_dbb_ad[1] + ci_nise_dbb_ad[1]*ci_nise_dbb_ad[1];
-            cohr_nise_dbb_ad[t2 + 1] += cr_nise_dbb_ad[0] * cr_nise_dbb_ad[1] + ci_nise_dbb_ad[0] * ci_nise_dbb_ad[1];
-            cohi_nise_dbb_ad[t2 + 1] += ci_nise_dbb_ad[0] * cr_nise_dbb_ad[1] - ci_nise_dbb_ad[1] * cr_nise_dbb_ad[0];
+                // NISE-DBb
+                // Transfer adiabatic -> site basis
+                trans_matrix_on_vector(H_new, cr_nise_dbb, ci_nise_dbb, N);
+                // Transfer site -> average eigenbasis
+                trans_matrix_on_vector(H_avg, cr_nise_dbb, ci_nise_dbb, N);
+                // Propagate
+                propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
+                // Transfer average -> site basis
+                matrix_on_vector(H_avg, cr_nise_dbb, ci_nise_dbb, N);
+                // Transfer site -> adiabatic basis
+                matrix_on_vector(H_new, cr_nise_dbb, ci_nise_dbb, N);
+                pop_nise_dbb[t2 + 1] += cr_nise_dbb[1]*cr_nise_dbb[1] + ci_nise_dbb[1]*ci_nise_dbb[1];
+                cohr_nise_dbb[t2 + 1] += cr_nise_dbb[0] * cr_nise_dbb[1] + ci_nise_dbb[0] * ci_nise_dbb[1];
+                cohi_nise_dbb[t2 + 1] += ci_nise_dbb[0] * cr_nise_dbb[1] - ci_nise_dbb[1] * cr_nise_dbb[0];
+
+            } else if (!strcmp(non->basis, "Average")) {
+                // NISE
+                // Transfer to site basis
+                trans_matrix_on_vector(H_avg, cr_nise, ci_nise, N);
+                // Propagate
+                propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
+                // Transfer back to average eigenbasis
+                trans_matrix_on_vector(H_avg, cr_nise, ci_nise, N);
+                pop_nise[t2 + 1] += cr_nise[1] * cr_nise[1] + ci_nise[1] * ci_nise[1];
+                cohr_nise[t2 + 1] += cr_nise[0] * cr_nise[1] + ci_nise[0] * ci_nise[1];
+                cohi_nise[t2 + 1] += ci_nise[0] * cr_nise[1] - ci_nise[1] * cr_nise[0];
+
+                // NISE-DBa
+                copyvec(H_old, Hcopy, N2);
+                // Transfer average -> site
+                trans_matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
+                // Transfer site -> adiabatic
+                trans_matrix_on_vector(H_new, cr_nise_dba, ci_nise_dba, N);
+                // Propagate
+                propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                // Transfer adiabatic -> site
+                matrix_on_vector(H_new, cr_nise_dba, ci_nise_dba, N);
+                // Transfer site -> average
+                matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
+                pop_nise_dba[t2 + 1] += cr_nise_dba[1]*cr_nise_dba[1] + ci_nise_dba[1]*ci_nise_dba[1];
+                cohr_nise_dba[t2 + 1] += cr_nise_dba[0] * cr_nise_dba[1] + ci_nise_dba[0] * ci_nise_dba[1];
+                cohi_nise_dba[t2 + 1] += ci_nise_dba[0] * cr_nise_dba[1] - ci_nise_dba[1] * cr_nise_dba[0];
+
+                // NISE-DBb
+                copyvec(H_old, Hcopy, N2);
+                propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
+                pop_nise_dbb[t2 + 1] += cr_nise_dbb[1]*cr_nise_dbb[1] + ci_nise_dbb[1]*ci_nise_dbb[1];
+                cohr_nise_dbb[t2 + 1] += cr_nise_dbb[0] * cr_nise_dbb[1] + ci_nise_dbb[0] * ci_nise_dbb[1];
+                cohi_nise_dbb[t2 + 1] += ci_nise_dbb[0] * cr_nise_dbb[1] - ci_nise_dbb[1] * cr_nise_dbb[0];
+            }
         }
     }
     
     char* fn = "pop_t2.txt";
     pop_print(fn, pop_nise, pop_nise_dba, pop_nise_dbb, non, sampleCount);
-    fn = "pop_t2_ad.txt";
-    pop_print(fn, pop_nise_ad, pop_nise_dba_ad, pop_nise_dbb_ad, non, sampleCount);
     fn = "coh_t2.txt";
     coh_print(fn, cohr_nise, cohi_nise, cohr_nise_dba, cohi_nise_dba, cohr_nise_dbb, cohi_nise_dbb, non, sampleCount);
-    fn = "coh_t2_ad.txt";
-    coh_print(fn, cohr_nise_ad, cohi_nise_ad, cohr_nise_dba_ad, cohi_nise_dba_ad, cohr_nise_dbb_ad, cohi_nise_dbb_ad, non, sampleCount);
 
-    free(Hamil_i_e), free(H_new), free(H_old), free(H_avg), free(Hcopy);
-    free(re_U), free(im_U), free(e), free(e_avg);
-    free(cr_nise), free(ci_nise), free(cr_nise_ad), free(ci_nise_ad);
-    free(cr_nise_dba), free(ci_nise_dba), free(cr_nise_dba_ad), free(ci_nise_dba_ad);
-    free(cr_nise_dbb), free(ci_nise_dbb), free(cr_nise_dbb_ad), free(ci_nise_dbb_ad);
-    free(pop_nise), free(pop_nise_dba), free(pop_nise_dbb);
-    free(pop_nise_ad), free(pop_nise_dba_ad), free(pop_nise_dbb_ad);
-    free(cohr_nise), free(cohr_nise_dba), free(cohr_nise_dbb);
-    free(cohi_nise), free(cohi_nise_dba), free(cohi_nise_dbb);
-    free(cohr_nise_ad), free(cohr_nise_dba_ad), free(cohr_nise_dbb_ad);
-    free(cohi_nise_ad), free(cohi_nise_dba_ad), free(cohi_nise_dbb_ad);
+    free(Hamil_i_e);
+    free(H_avg);
+    free(e_avg);
+    free(H_new);
+    free(H_old);
+    free(Hcopy);
+    free(re_U);
+    free(im_U);
+    free(e);
+    free(cr_nise);
+    free(ci_nise);
+    free(cr_nise_dba);
+    free(ci_nise_dba);
+    free(cr_nise_dbb);
+    free(ci_nise_dbb);
+    free(pop_nise);
+    free(pop_nise_dba);
+    free(pop_nise_dbb);
+    free(cohr_nise);
+    free(cohr_nise_dba);
+    free(cohr_nise_dbb);
+    free(cohi_nise);
+    free(cohi_nise_dba);
+    free(cohi_nise_dbb);
 }
