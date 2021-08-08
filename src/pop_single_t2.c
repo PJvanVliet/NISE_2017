@@ -183,9 +183,6 @@ void propagate_nise_dbb(
     ecopy = (float *) calloc(N, sizeof(float));
     Urcopy = (float *) calloc(N, sizeof(float));
     Uicopy = (float *) calloc(N, sizeof(float));
-    clearvec(Hcopy, N2);
-    clearvec(Urcopy, N);
-    clearvec(Uicopy, N);
 
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
@@ -571,10 +568,20 @@ void pop_single_t2(t_non* non) {
         }
     }
     
-    char* fn = "pop_t2.txt";
-    pop_print(fn, pop_nise, pop_nise_dba, pop_nise_dbb, non, sampleCount);
-    fn = "coh_t2.txt";
-    coh_print(fn, cohr_nise, cohi_nise, cohr_nise_dba, cohi_nise_dba, cohr_nise_dbb, cohi_nise_dbb, non, sampleCount);
+    // Export population and coherence data
+    if (!strcmp(non->basis, "Local")) {
+        char* fn_pop = "pop_t2_local.txt";
+        char* fn_coh = "coh_t2_local.txt";
+    } else if (!strcmp(non->basis, "Adiabatic")) {
+        char* fn_pop = "pop_t2_adiabatic.txt";
+        char* fn_coh = "coh_t2_adiabatic.txt";
+    } else if (!strcmp(non->basis, "Average")) {
+        char* fn_pop = "pop_t2_average.txt";
+        char* fn_coh = "coh_t2_average.txt";
+    }
+
+    pop_print(fn_pop, pop_nise, pop_nise_dba, pop_nise_dbb, non, sampleCount);;
+    coh_print(fn_coh, cohr_nise, cohi_nise, cohr_nise_dba, cohi_nise_dba, cohr_nise_dbb, cohi_nise_dbb, non, sampleCount);
 
     free(Hamil_i_e);
     free(H_avg);

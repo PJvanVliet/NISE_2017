@@ -1020,15 +1020,14 @@ void matrix_exp(float* m, int N) {
     // Find lwork;
     lwork = -1;
     work = (float *)calloc(1, sizeof(float));
-    
-    // printf("Setting up LAPACK routine.\n");
 
+    // printf("Setting up LAPACK routine.\n");
+    
     wr = (float *)calloc(N, sizeof(float));
     wi = (float *)calloc(N, sizeof(float));
     vrr = (float *)calloc(N*N, sizeof(float));
     vri = (float *)calloc(N*N, sizeof(float));
-    clearvec(vri, N*N);
-
+    
     int ldvl = 1;
 
     sgeev_("N", "V", &N, m, &N, wr, wi, vl, &ldvl, vrr, &N, work, &lwork, &INFO);
@@ -1061,8 +1060,7 @@ void matrix_exp(float* m, int N) {
 
     expr = (float *)calloc(N, sizeof(float));
     expi = (float *)calloc(N, sizeof(float));
-    clearvec(expr, N);
-    clearvec(expi, N);
+
     // Exponentiate diagonal matrix
     for (int i = 0; i < N; i++) {
         expr[i] = cos(wi[i]);
