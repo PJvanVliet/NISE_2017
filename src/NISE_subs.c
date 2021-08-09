@@ -1023,10 +1023,6 @@ void matrix_exp(float* m, int N) {
 
     // printf("Setting up LAPACK routine.\n");
     
-    wr = (float *)calloc(N, sizeof(float));
-    wi = (float *)calloc(N, sizeof(float));
-    vrr = (float *)calloc(N*N, sizeof(float));
-    vri = (float *)calloc(N*N, sizeof(float));
     
     int ldvl = 1;
 
@@ -1037,6 +1033,10 @@ void matrix_exp(float* m, int N) {
     free(work);
 
     work = (float *)calloc(lwork, sizeof(float));
+    wr = (float *)calloc(N, sizeof(float));
+    wi = (float *)calloc(N, sizeof(float));
+    vrr = (float *)calloc(N*N, sizeof(float));
+    vri = (float *)calloc(N*N, sizeof(float));
 
     // Call LAPACK routine
     sgeev_("N", "V", &N, m, &N, wr, wi, vl, &ldvl, vrr, &N, work, &lwork, &INFO);

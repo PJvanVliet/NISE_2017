@@ -99,6 +99,7 @@ void propagate_nise_dba(
     float re, im;
     float* abs;
     int i, j, k;
+    float boltz;
     
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
@@ -126,7 +127,7 @@ void propagate_nise_dba(
         H_old[i + N*i] = 0;
         for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
-            float boltz = exp(ediff / kBT);
+            boltz = exp(ediff / kBT);
             qc_ij = sqrt(2 / (1 + boltz));
             qc_ji = qc_ij * sqrt(boltz);
             // Correction by Kleinekathofer
@@ -172,6 +173,7 @@ void propagate_nise_dbb(
     float re, im;
     float* abs;
     int i, j, k;
+    float boltz;
     
     N = non->singles;
     N2 = N*N;
@@ -223,7 +225,7 @@ void propagate_nise_dbb(
         Hcopy[i + N*i] = 0;
         for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
-            float boltz = exp(ediff / kBT);
+            boltz = exp(ediff / kBT);
             qc_ij = sqrt(2 / (1 + boltz));
             qc_ji = qc_ij * sqrt(boltz);
             // Correction by Kleinekathofer
@@ -252,11 +254,16 @@ void propagate_nise_dbb(
     vector_on_vector(re_U,im_U,cr,ci,N);
 
     free(abs);
+    free(Hcopy);
+    free(ecopy);
+    free(Urcopy);
+    free(Uicopy);
 }
 
 void row_swap(float* a, int row1, int row2, int N) {
+    float temp;
     for (int i = 0; i < N; i++) {
-        float temp = a[i + row1*N];
+        temp = a[i + row1*N];
         a[i + row1*N] = a[i + row2*N];
         a[i + row2*N] = temp; 
     }
