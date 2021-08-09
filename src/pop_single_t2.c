@@ -413,7 +413,7 @@ void pop_single_t2(t_non* non) {
                     // Transfer average -> site basis
                     matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
                     // Propagate
-                    copyvec(H_old, Hcopy);
+                    copyvec(H_old, Hcopy, N2);
                     propagate_nise_dbc(non, H_old, H_new, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
@@ -430,7 +430,7 @@ void pop_single_t2(t_non* non) {
                     // Transfer average -> site basis
                     matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
                     // Propagate
-                    copyvec(H_old, Hcopy);
+                    copyvec(H_old, Hcopy, N2);
                     propagate_tnise(non, H_old, H_new, e, re_U, im_U, cr_tnise, ci_tnise);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
