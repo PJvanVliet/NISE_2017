@@ -227,6 +227,10 @@ void propagate_nise_dbc(
     Urcopy = (float *) calloc(N, sizeof(float));
     Uicopy = (float *) calloc(N, sizeof(float));
 
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        matrix_on_vector(H_new, cr, ci, N);
+    }
+
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
@@ -269,6 +273,10 @@ void propagate_nise_dbc(
     trans_matrix_on_vector(Hcopy, cr, ci, N);
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
+
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        trans_matrix_on_vector(H_new, cr, ci, N);
+    }
 
     free(abs);
     free(Hcopy);
@@ -319,10 +327,19 @@ void propagate_tnise(
         // Renormalise
         H_old[i + N*i] = sqrt(1 - norm2);
     }
+
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        matrix_on_vector(H_new, cr, ci, N);
+    }
+
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
+
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        trans_matrix_on_vector(H_new, cr, ci, N);
+    }
 
     free(abs);
 }
