@@ -64,7 +64,6 @@ void propagate_NISE(
 ) {
     float f;
     int index, N;
-    float re, im;
     int i;
 
     N = non->singles;
@@ -96,15 +95,11 @@ void propagate_nise_dba(
     float f;
     int index, N;
     float qc_ij, qc_ji, ediff;
-    float re, im;
     float* abs;
     int i, j, k;
-    float boltz;
     
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
-    float kBT=non->temperature*0.695; // Kelvin to cm-1
-
     abs = (float *)calloc(N, sizeof(float));
 
     // Compute absolute values of the wavefunction coeffs
@@ -122,24 +117,7 @@ void propagate_nise_dba(
     matrix_on_matrix(H_new, H_old, N);
 
     // Compute temperature adjustments
-    for (i = 0; i < N; i++) {
-        // Reset diagonal
-        H_old[i + N*i] = 0;
-        for (j = 0; j < i; j++) {
-            ediff = e[i] - e[j];
-            boltz = exp(ediff / kBT);
-            qc_ij = sqrt(2 / (1 + boltz));
-            qc_ji = qc_ij * sqrt(boltz);
-            // Correction by Kleinekathofer
-            if (abs[i] - abs[j] != 0) {
-                H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
-                H_old[i + N*j] /= abs[j] - abs[i];
-            } else {
-                H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
-            }
-            H_old[j + N*i] = -H_old[i + N*j];
-        }
-    }
+    thermal_correction(non, H_old, e, abs);
 
     // Exponentiate the non-adiabatic couplings
     matrix_exp(H_old, N);
@@ -170,17 +148,14 @@ void propagate_nise_dbb(
     float *Urcopy;
     float *Uicopy;
     float qc_ij, qc_ji, ediff;
-    float re, im;
     float* abs;
     int i, j, k;
-    float boltz;
     
     N = non->singles;
     N2 = N*N;
     f = non->deltat * icm2ifs * twoPi;
-    float kBT=non->temperature*0.695; // Kelvin to cm-1
 
-    abs = (float *)calloc(N, sizeof(float));
+    abs = (float *) calloc(N, sizeof(float));
     Hcopy = (float *) calloc(N2, sizeof(float));
     ecopy = (float *) calloc(N, sizeof(float));
     Urcopy = (float *) calloc(N, sizeof(float));
@@ -220,24 +195,7 @@ void propagate_nise_dbb(
     }
 
     // Compute temperature adjustments
-    for (i = 0; i < N; i++) {
-        // Reset diagonal
-        Hcopy[i + N*i] = 0;
-        for (j = 0; j < i; j++) {
-            ediff = e[i] - e[j];
-            boltz = exp(ediff / kBT);
-            qc_ij = sqrt(2 / (1 + boltz));
-            qc_ji = qc_ij * sqrt(boltz);
-            // Correction by Kleinekathofer
-            if (abs[i] - abs[j] != 0) {
-                Hcopy[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
-                Hcopy[i + N*j] /= abs[j] - abs[i];
-            } else {
-                Hcopy[i + N*j] *= (qc_ij - qc_ji) / 2;
-            }
-            Hcopy[j + N*i] = Hcopy[i + N*j];
-        }
-    }
+    thermal_correction(non, Hcopy, e, abs);
 
     // Exponentiate the couplings
     diagonalizeLPD(Hcopy, ecopy, N);
@@ -258,6 +216,144 @@ void propagate_nise_dbb(
     free(ecopy);
     free(Urcopy);
     free(Uicopy);
+}
+
+// Still need to adapt!
+void propagate_nise_dbc(
+    t_non *non, 
+    float *H_old, 
+    float *H_new,
+    float *e_old,
+    float *e_new, 
+    float *re_U, 
+    float *im_U, 
+    float *cr, 
+    float *ci
+) {
+    float f;
+    int index, N;
+    float qc_ij, qc_ji, ediff;
+    float* abs;
+    float* Hcopy;
+    int i, j, k;
+    
+    N = non->singles;
+    f = non->deltat * icm2ifs * twoPi;
+    abs = (float *)calloc(N, sizeof(float));
+    Hcopy = (float *)calloc(N*N, size(float));
+
+    // Compute absolute values of the wavefunction coeffs
+    for (i = 0; i < N; i++) {
+        abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
+    }
+
+    // Exponentiate [U=exp(-i/h H dt)]
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos(e[i] * f);
+        im_U[i] = -sin(e[i] * f);
+    }
+
+    // Compute unadjusted non-adiabatic coupling
+    matrix_on_matrix(H_new, H_old, N);
+
+    // Compute temperature adjustments
+    thermal_correction(non, H_old, e, abs);
+
+    // Exponentiate the non-adiabatic couplings
+    matrix_exp(H_old, N);
+
+    // Multiply with (real) non-adiabatic propagator
+    trans_matrix_on_vector(H_old, cr, ci, N);
+    // Multiply with matrix exponent
+    vector_on_vector(re_U,im_U,cr,ci,N);
+
+    free(abs);
+    free(Hcopy);
+}
+
+void propagate_tnise(
+    t_non *non, 
+    float *H_old, 
+    float *H_new, 
+    float *e, 
+    float *re_U, 
+    float *im_U, 
+    float *cr, 
+    float *ci
+) {
+    float f;
+    int index, N;
+    float qc_ij, qc_ji, ediff;
+    int i, j, k;
+    float norm;
+    
+    N = non->singles;
+    f = non->deltat * icm2ifs * twoPi;
+    float kBT=non->temperature*0.695; // Kelvin to cm-1
+
+    // Exponentiate [U=exp(-i/h H dt)]
+    for (i = 0; i < N; i++) {
+        re_U[i] = cos(e[i] * f);
+        im_U[i] = -sin(e[i] * f);
+    }
+
+    // Compute unadjusted non-adiabatic coupling
+    matrix_on_matrix(H_new, H_old, N);
+
+    // Compute temperature adjustments
+    for (i = 0; i < N; i++) {
+        norm2 = 0;
+        for (j = 0; j < N; j++) {
+            if (j != i) {
+                ediff = e[i] - e[j];
+                H_old[i + N*j] *= exp(-0.25 * ediff / kBT);
+                norm2 += H_old[i + N*j] * H_old[i + N*j];
+            }
+        }
+        // Renormalise
+        H_old[i + N*i] = sqrt(1 - norm2);
+    }
+
+    // Multiply with (real) non-adiabatic propagator
+    trans_matrix_on_vector(H_old, cr, ci, N);
+    // Multiply with matrix exponent
+    vector_on_vector(re_U,im_U,cr,ci,N);
+
+    free(abs);
+}
+
+void thermal_correction(
+    t_non* non, 
+    float *H_old, 
+    float *e, 
+    float *abs
+) {
+    int N;
+    float qc_ij, qc_ji, ediff;
+    int i, j;
+    float boltz;
+    
+    N = non->singles;
+    float kBT=non->temperature*0.695; // Kelvin to cm-1
+
+    for (i = 0; i < N; i++) {
+        // Reset diagonal
+        H_old[i + N*i] = 0;
+        for (j = 0; j < i; j++) {
+            ediff = e[i] - e[j];
+            boltz = exp(ediff / kBT);
+            qc_ij = sqrt(2 / (1 + boltz));
+            qc_ji = qc_ij * sqrt(boltz);
+            // Correction by Kleinekathoefer
+            if (abs[i] - abs[j] != 0) {
+                H_old[i + N*j] *= abs[j]*qc_ij - abs[i]*qc_ji;
+                H_old[i + N*j] /= abs[j] - abs[i];
+            } else {
+                H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
+            }
+            H_old[j + N*i] = -H_old[i + N*j];
+        }
+    }
 }
 
 void row_swap(float* a, int row1, int row2, int N) {
