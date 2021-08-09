@@ -13,7 +13,7 @@ add_executable(NISE
     population.c c_absorption.c calc_DOS.h calc_DOS.c calc_2DIR.c calc_2DES.c
     luminescence.c calc_Diffusion.h calc_Diffusion.c
     calc_CD.c calc_CD.h calc_LD.c calc_LD.h analyse.c readinput.c readinput.h
-    types_MPI.h types_MPI.c pop_single_t2.h pop_single_t2.c
+    types_MPI.h types_MPI.c pop_single_t2.h pop_single_t2.c prop_schemes.h prop_schemes.c
     $<TARGET_OBJECTS:random_lib>
 )
 

@@ -1087,9 +1087,21 @@ void matrix_exp(float* m, int N) {
     return;
 }
 
+// Build square Hamiltonian from triagonal matrix
+void build_H(float* Hamiltonian_i, float* H, int N) {
+    int a, b;
+    for (a = 0; a < N; a++) {
+        H[a + N * a] = Hamiltonian_i[a + N * a - (a * (a + 1)) / 2]; // Diagonal
+        for (b = a + 1; b < N; b++) {
+            H[a + N * b] = Hamiltonian_i[b + N * a - (a * (a + 1)) / 2];
+            H[b + N * a] = Hamiltonian_i[b + N * a - (a * (a + 1)) / 2];
+        }
+    }
+}
+
 // Build and diagonalize Hamiltonian
 void build_diag_H(float* Hamiltonian_i, float* H, float* e, int N) {
-    int a, b, c;
+    int a, b;
     // Build square Hamiltonian from triagonal matrix
     for (a = 0; a < N; a++) {
         H[a + N * a] = Hamiltonian_i[a + N * a - (a * (a + 1)) / 2]; // Diagonal
