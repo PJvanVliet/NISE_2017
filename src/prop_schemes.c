@@ -67,7 +67,7 @@ void propagate_nise_dba(
     abs = (float *)calloc(N, sizeof(float));
     
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        matrix_on_vector(H_new, cr, ci, N);
+        matrix_on_vector(H_old, cr, ci, N);
     }
 
     // Compute absolute values of the wavefunction coeffs
@@ -143,21 +143,23 @@ void propagate_nise_dbb(
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
     
-    // Find product of eigenvector matrices
-    copyvec(H_avg, Hcc, N2);
-    matrix_on_matrix(H_new, Hcc, N);
-    // Find projection of new Hamiltonian in average basis
+    clearvec(Hcc, N2);
+    // Find site basis perturbation
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             // Diagonals
-            Hcopy[i + N*i] += Hcc[i + N*j] * Hcc[i + N*j] * e[j];
+            Hcc[i + N*i] += e[j] * H_new[i + N*j] * H_new[i + N*j];
             // Off-diagonals
             for (k = 0; k < N; k++) {
-                Hcopy[i + N*j] += Hcc[j + N*k] * Hcc[i + N*k] * e[k];
+                Hcc[i + N*j] += e[k] * H_new[i + N*k] * H_new[j + N*k];
             }
         }
     }
-    
+
+    // Find average eigenbasis perturbation
+    copyvec(H_avg, Hcopy, N2);
+    matrix_on_matrix(H_avg, Hcc, N);
+    matrix_on_matrix(Hcc, Hcopy, N);
     free(Hcc);
 
     // Exponentiate diagonal terms [U=exp(-i/h H dt)]
@@ -199,6 +201,7 @@ void propagate_nise_dbc(
     t_non *non, 
     float *H_old, 
     float *H_new,
+    float *e_old,
     float *e_new, 
     float *re_U, 
     float *im_U, 
@@ -228,7 +231,7 @@ void propagate_nise_dbc(
     Uicopy = (float *) calloc(N, sizeof(float));
 
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        matrix_on_vector(H_new, cr, ci, N);
+        matrix_on_vector(H_old, cr, ci, N);
     }
 
     // Compute absolute values of the wavefunction coeffs
@@ -236,21 +239,23 @@ void propagate_nise_dbc(
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
     
-    // Find product of eigenvector matrices
-    copyvec(H_old, Hcc, N2);
-    matrix_on_matrix(H_new, Hcc, N);
-    // Find projection of new Hamiltonian in adiabatic basis
+    clearvec(Hcc, N2);
+    // Find site basis perturbation
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             // Diagonals
-            Hcopy[i + N*i] += Hcc[i + N*j] * Hcc[i + N*j] * e_new[j];
+            Hcc[i + N*i] += e_new[j] * H_new[i + N*j] * H_new[i + N*j];
             // Off-diagonals
             for (k = 0; k < N; k++) {
-                Hcopy[i + N*j] += Hcc[j + N*k] * Hcc[i + N*k] * e_new[k];
+                Hcc[i + N*j] += e_new[k] * H_new[i + N*k] * H_new[j + N*k];
             }
         }
     }
-    
+
+    // Find average eigenbasis perturbation
+    copyvec(H_old, Hcopy, N2);
+    matrix_on_matrix(H_old, Hcc, N);
+    matrix_on_matrix(Hcc, Hcopy, N);
     free(Hcc);
 
     // Exponentiate diagonal terms [U=exp(-i/h H dt)]
@@ -312,6 +317,10 @@ void propagate_tnise(
         im_U[i] = -sin(e[i] * f);
     }
 
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        matrix_on_vector(H_old, cr, ci, N);
+    }
+
     // Compute unadjusted non-adiabatic coupling
     matrix_on_matrix(H_new, H_old, N);
     // Compute temperature adjustments
@@ -328,10 +337,6 @@ void propagate_tnise(
         H_old[i + N*i] = sqrt(1 - norm2);
     }
 
-    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        matrix_on_vector(H_new, cr, ci, N);
-    }
-
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
@@ -341,7 +346,14 @@ void propagate_tnise(
         trans_matrix_on_vector(H_new, cr, ci, N);
     }
 
-    free(abs);
+    norm2 = 0;
+    for (i = 0; i < N; i++) {
+        norm2 += cr[i]*cr[i] + ci[i]*ci[i];
+    }
+    for (i = 0; i < N; i++) {
+        cr[i] /= sqrt(norm2);
+        ci[i] /= sqrt(norm2);
+    }
 }
 
 void thermal_correction(

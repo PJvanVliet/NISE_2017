@@ -199,6 +199,7 @@ void pop_single_t2(t_non* non) {
     float *Hamil_i_e;
     float *H_avg;
     float *e_avg;
+    float *e_old;
     float *H_new;
     float *H_old;
     float *Hcopy;
@@ -252,6 +253,7 @@ void pop_single_t2(t_non* non) {
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
     e_avg = (float *) calloc(N, sizeof(float));
+    e_old = (float *) calloc(N, sizeof(float));
     H_new = (float *) calloc(N2, sizeof(float));
     H_old = (float *) calloc(N2, sizeof(float));
     Hcopy = (float *)calloc(N2, sizeof(float));
@@ -345,6 +347,7 @@ void pop_single_t2(t_non* non) {
             int tm = ti + t2 + 1;
             // Copy old Hamiltonian
             copyvec(H_new, H_old, N2);
+            copyvec(e, e_old, N);
             // Load new Hamiltonian
             if (read_He(non, Hamil_i_e, H_traj, tm) != 1) {
                 exit(1);
@@ -361,7 +364,7 @@ void pop_single_t2(t_non* non) {
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
                     // Transfer site -> adiabatic basis
-                    trans_matrix_on_vector(H_old, cr_nise, ci_nise, N);
+                    trans_matrix_on_vector(H_new, cr_nise, ci_nise, N);
                 } else if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
                     matrix_on_vector(H_avg, cr_nise, ci_nise, N);
@@ -396,7 +399,7 @@ void pop_single_t2(t_non* non) {
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
-                    matrix_on_vector(H_new, cr_nise_dbb, ci_nise_dbb, N);
+                    matrix_on_vector(H_old, cr_nise_dbb, ci_nise_dbb, N);
                     // Propagate
                     propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
                     // Transfer site -> adiabatic basis
@@ -414,13 +417,13 @@ void pop_single_t2(t_non* non) {
                     matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, H_old, H_new, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
+                    propagate_nise_dbc(non, H_old, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, H_old, H_new, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
+                    propagate_nise_dbc(non, H_old, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
                 }
                 update_trajectories(t2, cr_nise_dbc, ci_nise_dbc, pop_nise_dbc, cohr_nise_dbc, cohi_nise_dbc);
             }
