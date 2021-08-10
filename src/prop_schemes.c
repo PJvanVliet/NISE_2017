@@ -142,30 +142,27 @@ void propagate_nise_dbb(
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
-    
+
     clearvec(Hcc, N2);
     // Find site basis perturbation
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
-            // Diagonals
-            Hcc[i + N*i] += e[j] * H_new[i + N*j] * H_new[i + N*j];
-            // Off-diagonals
             for (k = 0; k < N; k++) {
                 Hcc[i + N*j] += e[k] * H_new[i + N*k] * H_new[j + N*k];
+                Hcc[i + N*j] -= e_avg[k] * H_avg[i + N*k] * H_avg[j + N*k];
             }
         }
     }
-
     // Find average eigenbasis perturbation
     copyvec(H_avg, Hcopy, N2);
-    matrix_on_matrix(H_avg, Hcc, N);
     matrix_on_matrix(Hcc, Hcopy, N);
+    matrix_on_matrix(H_avg, Hcopy, N);
     free(Hcc);
 
     // Exponentiate diagonal terms [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
-        re_U[i] = cos(Hcopy[i + N*i] * f);
-        im_U[i] = -sin(Hcopy[i + N*i] * f);
+        re_U[i] = cos((e_avg[i] + Hcopy[i + N*i]) * f);
+        im_U[i] = -sin((e_avg[i] + Hcopy[i + N*i]) * f);
     }
 
     // Compute temperature adjustments
@@ -243,29 +240,65 @@ void propagate_nise_dbc(
     // Find site basis perturbation
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
-            // Diagonals
-            Hcc[i + N*i] += e_new[j] * H_new[i + N*j] * H_new[i + N*j];
-            // Off-diagonals
             for (k = 0; k < N; k++) {
-                Hcc[i + N*j] += e_new[k] * H_new[i + N*k] * H_new[j + N*k];
+                Hcc[j + N*i] += e_new[k] * H_new[i + N*k] * H_new[j + N*k];
+                Hcc[j + N*i] -= e_old[k] * H_old[i + N*k] * H_old[j + N*k];
             }
         }
     }
 
-    // Find average eigenbasis perturbation
+    printf("\nNISE-DBc:\n");
+    printf("Site basis perturbation:\n");
+    for (i = 0; i < N; i++) {
+        for (j = 0; j<N; j++) {
+            printf("%f ", Hcc[j + N*i]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    // Find adiabatic basis perturbation
     copyvec(H_old, Hcopy, N2);
-    matrix_on_matrix(H_old, Hcc, N);
     matrix_on_matrix(Hcc, Hcopy, N);
+    matrix_on_matrix(H_old, Hcopy, N);
     free(Hcc);
+
+    printf("Adiabatic basis perturbation:\n");
+    for (i = 0; i < N; i++) {
+        for (j = 0; j<N; j++) {
+            printf("%f ", Hcopy[j + N*i]);
+        }
+        printf("\n");
+    }
+    // printf("\n");
+    // printf("Wavefunction coefficients:\n");
+    // for (i = 0; i < N; i++) {
+    //     printf("%f ", abs[i]);
+    // }
+    // printf("\n");
+    // printf("Energies:\n");
+    // for (i = 0; i < N; i++) {
+    //     printf("%f ", e_new[i]);
+    // }
+    // printf("\n");
 
     // Exponentiate diagonal terms [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
-        re_U[i] = cos(Hcopy[i + N*i] * f);
-        im_U[i] = -sin(Hcopy[i + N*i] * f);
+        re_U[i] = cos((e_old[i] + Hcopy[i + N*i]) * f);
+        im_U[i] = -sin((e_old[i] + Hcopy[i + N*i]) * f);
     }
 
     // Compute temperature adjustments
     thermal_correction(non, Hcopy, e_new, abs);
+    printf("Corrected perturbation:\n");
+    for (i = 0; i < N; i++) {
+        for (j = 0; j<N; j++) {
+            printf("%f ", Hcopy[j + N*i]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
     // Exponentiate the couplings
     diagonalizeLPD(Hcopy, ecopy, N);
     // Multiply with adjusted couplings.
@@ -290,12 +323,13 @@ void propagate_nise_dbc(
     free(Uicopy);
 }
 
-// Expects wavefunction in adiabatic basis
+// Expects wavefunction in site basis
 void propagate_tnise(
     t_non *non, 
     float *H_old, 
     float *H_new, 
-    float *e, 
+    float *e_old,
+    float *e_new, 
     float *re_U, 
     float *im_U, 
     float *cr, 
@@ -313,8 +347,8 @@ void propagate_tnise(
 
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
-        re_U[i] = cos(e[i] * f);
-        im_U[i] = -sin(e[i] * f);
+        re_U[i] = cos(e_new[i] * f);
+        im_U[i] = -sin(e_new[i] * f);
     }
 
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
@@ -325,16 +359,12 @@ void propagate_tnise(
     matrix_on_matrix(H_new, H_old, N);
     // Compute temperature adjustments
     for (i = 0; i < N; i++) {
-        norm2 = 0;
         for (j = 0; j < N; j++) {
             if (j != i) {
-                ediff = e[i] - e[j];
-                H_old[i + N*j] *= exp(-0.25 * ediff / kBT);
-                norm2 += H_old[i + N*j] * H_old[i + N*j];
+                ediff = e_new[j] - e_old[i];
+                H_old[i + N*j] *= exp(-ediff / kBT / 2);
             }
         }
-        // Renormalise
-        H_old[i + N*i] = sqrt(1 - norm2);
     }
 
     // Multiply with (real) non-adiabatic propagator
@@ -370,10 +400,11 @@ void thermal_correction(
     N = non->singles;
     float kBT=non->temperature*0.695; // Kelvin to cm-1
 
+    // printf("\n");
     for (i = 0; i < N; i++) {
         // Reset diagonal
         H_old[i + N*i] = 0;
-        for (j = 0; j < i; j++) {
+        for (j = 0; j < N; j++) {
             ediff = e[i] - e[j];
             boltz = exp(ediff / kBT);
             qc_ij = sqrt(2 / (1 + boltz));
@@ -385,7 +416,8 @@ void thermal_correction(
             } else {
                 H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
             }
-            H_old[j + N*i] = -H_old[i + N*j];
+            // printf("Correction factor: %f\n", (abs[j]*qc_ij - abs[i]*qc_ji)/(abs[j]-abs[i]));
         }
     }
+    // printf("\n");
 }

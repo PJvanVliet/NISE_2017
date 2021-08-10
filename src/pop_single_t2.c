@@ -85,14 +85,14 @@ void update_trajectories(int t2, float* cr, float* ci, float* pop, float* cohr, 
 
 void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
     int N2, nn2;
-    int a, b;
+    int a, b, c;
     float *Hamil_i_e;
     
     N2 = N * N;
     nn2 = N * (N + 1) / 2;
     clearvec(H_avg, N2);
     Hamil_i_e = (float *)calloc(nn2, sizeof(float));
-    for (int t2 = 0; t2 < (non->length - non->tmax2 - 1); t2++) {
+    for (int t2 = 0; t2 < non->length; t2++) {
         if (read_He(non, Hamil_i_e, H_traj, t2) != 1) {
             printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
             exit(1);
@@ -110,10 +110,10 @@ void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
     free(Hamil_i_e);
     // Divide by total number of samples
     for (a = 0; a < N; a++) {
-        H_avg[a + N * a] /= (non->length - non->tmax2); // Diagonal
+        H_avg[a + N * a] /= non->length; // Diagonal
         for (b = a + 1; b < N; b++) {
-            H_avg[a + N * b] /= (non->length - non->tmax2);
-            H_avg[b + N * a] /= (non->length - non->tmax2);
+            H_avg[a + N * b] /= non->length;
+            H_avg[b + N * a] /= non->length;
         }
     }
     // Diagonalise Hamiltonian
@@ -306,7 +306,7 @@ void pop_single_t2(t_non* non) {
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
     printf("Total number of samples: %i\n", sampleCount);
     // Set the initial population
-    pop_nise[0] = pop_nise_dba[0] = pop_nise_dbb[0] = 1.0 * sampleCount;
+    pop_nise[0] = pop_nise_dba[0] = pop_nise_dbb[0] = pop_nise_dbc[0] = pop_tnise[0] = 1.0 * sampleCount;
 
     // Read the Hamiltonian file
     FILE* H_traj = fopen(non->energyFName, "rb");
@@ -391,7 +391,7 @@ void pop_single_t2(t_non* non) {
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dba(non, H_old, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                    propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
                 update_trajectories(t2, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
             }
@@ -417,13 +417,13 @@ void pop_single_t2(t_non* non) {
                     matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, H_old, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
+                    propagate_nise_dbc(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, H_old, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
+                    propagate_nise_dbc(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
                 }
                 update_trajectories(t2, cr_nise_dbc, ci_nise_dbc, pop_nise_dbc, cohr_nise_dbc, cohi_nise_dbc);
             }
@@ -434,13 +434,13 @@ void pop_single_t2(t_non* non) {
                     matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_tnise(non, H_old, H_new, e, re_U, im_U, cr_tnise, ci_tnise);
+                    propagate_tnise(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_tnise, ci_tnise);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_tnise(non, H_old, H_new, e, re_U, im_U, cr_tnise, ci_tnise);
+                    propagate_tnise(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_tnise, ci_tnise);
                 }
                 update_trajectories(t2, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
             }
