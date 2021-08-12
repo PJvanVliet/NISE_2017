@@ -66,6 +66,7 @@ void propagate_nise_dba(
     f = non->deltat * icm2ifs * twoPi;
     abs = (float *)calloc(N, sizeof(float));
     
+    // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_old, cr, ci, N);
     }
@@ -92,6 +93,7 @@ void propagate_nise_dba(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
+    // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         trans_matrix_on_vector(H_new, cr, ci, N);
     }
@@ -133,8 +135,8 @@ void propagate_nise_dbb(
     Urcopy = (float *) calloc(N, sizeof(float));
     Uicopy = (float *) calloc(N, sizeof(float));
 
+    // Transfer local -> average basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Adiabatic")) {
-        // Transfer local -> average basis
         trans_matrix_on_vector(H_avg, cr, ci, N);
     }
 
@@ -181,8 +183,8 @@ void propagate_nise_dbb(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
+    // Convert average -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Adiabatic")) {
-        // Convert average -> local basis
         matrix_on_vector(H_avg, cr, ci, N);
     }
 
@@ -193,7 +195,7 @@ void propagate_nise_dbb(
     free(Uicopy);
 }
 
-// Expects wavefunction in adiabatic basis
+// Expects wavefunction in adiabatic or local basis (see NISE-DBa)
 void propagate_nise_dbc(
     t_non *non, 
     float *H_old, 
@@ -227,6 +229,7 @@ void propagate_nise_dbc(
     Urcopy = (float *) calloc(N, sizeof(float));
     Uicopy = (float *) calloc(N, sizeof(float));
 
+    // Transfer local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_old, cr, ci, N);
     }
@@ -249,13 +252,7 @@ void propagate_nise_dbc(
 
     printf("\nNISE-DBc:\n");
     printf("Site basis perturbation:\n");
-    for (i = 0; i < N; i++) {
-        for (j = 0; j<N; j++) {
-            printf("%f ", Hcc[j + N*i]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printmat(Hcc, N);
 
     // Find adiabatic basis perturbation
     copyvec(H_old, Hcopy, N2);
@@ -264,23 +261,7 @@ void propagate_nise_dbc(
     free(Hcc);
 
     printf("Adiabatic basis perturbation:\n");
-    for (i = 0; i < N; i++) {
-        for (j = 0; j<N; j++) {
-            printf("%f ", Hcopy[j + N*i]);
-        }
-        printf("\n");
-    }
-    // printf("\n");
-    // printf("Wavefunction coefficients:\n");
-    // for (i = 0; i < N; i++) {
-    //     printf("%f ", abs[i]);
-    // }
-    // printf("\n");
-    // printf("Energies:\n");
-    // for (i = 0; i < N; i++) {
-    //     printf("%f ", e_new[i]);
-    // }
-    // printf("\n");
+    // printmat(Hcopy, N);
 
     // Exponentiate diagonal terms [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
@@ -291,13 +272,7 @@ void propagate_nise_dbc(
     // Compute temperature adjustments
     thermal_correction(non, Hcopy, e_new, abs);
     printf("Corrected perturbation:\n");
-    for (i = 0; i < N; i++) {
-        for (j = 0; j<N; j++) {
-            printf("%f ", Hcopy[j + N*i]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printmat(Hcopy, N);
 
     // Exponentiate the couplings
     diagonalizeLPD(Hcopy, ecopy, N);
@@ -312,6 +287,7 @@ void propagate_nise_dbc(
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
+    // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         trans_matrix_on_vector(H_new, cr, ci, N);
     }
@@ -323,7 +299,7 @@ void propagate_nise_dbc(
     free(Uicopy);
 }
 
-// Expects wavefunction in site basis
+// Expects wavefunction in adiabatic or local basis
 void propagate_tnise(
     t_non *non, 
     float *H_old, 
@@ -349,8 +325,9 @@ void propagate_tnise(
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e_new[i] * f);
         im_U[i] = -sin(e_new[i] * f);
-    }
+    }  
 
+    // Transfer local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_old, cr, ci, N);
     }
@@ -369,13 +346,7 @@ void propagate_tnise(
 
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(H_old, cr, ci, N);
-    // Multiply with matrix exponent
-    vector_on_vector(re_U,im_U,cr,ci,N);
-
-    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        trans_matrix_on_vector(H_new, cr, ci, N);
-    }
-
+    // Renormalise wavefunction
     norm2 = 0;
     for (i = 0; i < N; i++) {
         norm2 += cr[i]*cr[i] + ci[i]*ci[i];
@@ -383,6 +354,13 @@ void propagate_tnise(
     for (i = 0; i < N; i++) {
         cr[i] /= sqrt(norm2);
         ci[i] /= sqrt(norm2);
+    }
+    // Multiply with matrix exponent
+    vector_on_vector(re_U,im_U,cr,ci,N);
+
+    // Return adiabatic -> local basis
+    if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
+        trans_matrix_on_vector(H_new, cr, ci, N);
     }
 }
 
@@ -400,7 +378,6 @@ void thermal_correction(
     N = non->singles;
     float kBT=non->temperature*0.695; // Kelvin to cm-1
 
-    // printf("\n");
     for (i = 0; i < N; i++) {
         // Reset diagonal
         H_old[i + N*i] = 0;
@@ -416,8 +393,6 @@ void thermal_correction(
             } else {
                 H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
             }
-            // printf("Correction factor: %f\n", (abs[j]*qc_ij - abs[i]*qc_ji)/(abs[j]-abs[i]));
         }
     }
-    // printf("\n");
 }

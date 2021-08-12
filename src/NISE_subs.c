@@ -45,11 +45,23 @@ void clearvec(float* a, int N) {
 void unitmat(float *a,int N){
     int i,j;
     for (i = 0; i < N; i++){
-	for (j = 0; j < N ; j++){
+        for (j = 0; j < N ; j++){
             a[i+N*j]=0;
-    	    if (i==j) a[i+N*j]=1;
-	}
+            if (i==j) a[i+N*j]=1;
+        }
     }
+}
+
+// Print matrix to console (debug)
+void printmat(float *m, int N) {
+    int i, j;
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", m[j + N*i]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
 
 // Multiply a complex diagonal matrix on a complex vector
