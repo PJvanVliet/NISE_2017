@@ -230,12 +230,6 @@ void pop_single_t2(t_non* non) {
     float *pop_nise_dbb;
     float *cohr_nise_dbb;
     float *cohi_nise_dbb;
-    // Variables specific to NISE-DBc
-    float *cr_nise_dbc;
-    float *ci_nise_dbc;
-    float *pop_nise_dbc;
-    float *cohr_nise_dbc;
-    float *cohi_nise_dbc;
     // Variables specific to tNISE
     float *cr_tnise;
     float *ci_tnise;
@@ -247,7 +241,6 @@ void pop_single_t2(t_non* non) {
     nise = 1;
     nise_dba = 1;
     nise_dbb = 1;
-    nise_dbc = 1;
     tnise = 1;
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
@@ -285,14 +278,6 @@ void pop_single_t2(t_non* non) {
         cohr_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float)); 
         cohi_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
     }
-    // Decide whether to use NISE-DBc
-    if (nise_dbc == 1) {
-        cr_nise_dbc = (float *) calloc(N, sizeof(float));
-        ci_nise_dbc = (float *) calloc(N, sizeof(float));
-        pop_nise_dbc = (float *) calloc(non->tmax2 + 1, sizeof(float));
-        cohr_nise_dbc = (float *) calloc(non->tmax2 + 1, sizeof(float)); 
-        cohi_nise_dbc = (float *) calloc(non->tmax2 + 1, sizeof(float));
-    }
     // Decide whether to use tNISE
     if (tnise == 1) {
         cr_tnise = (float *) calloc(N, sizeof(float));
@@ -306,7 +291,7 @@ void pop_single_t2(t_non* non) {
     sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
     printf("Total number of samples: %i\n", sampleCount);
     // Set the initial population
-    pop_nise[0] = pop_nise_dba[0] = pop_nise_dbb[0] = pop_nise_dbc[0] = pop_tnise[0] = 1.0 * sampleCount;
+    pop_nise[0] = pop_nise_dba[0] = pop_nise_dbb[0] = pop_tnise[0] = 1.0 * sampleCount;
 
     // Read the Hamiltonian file
     FILE* H_traj = fopen(non->energyFName, "rb");
@@ -334,11 +319,10 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(
-            N, 10, 
+            N, 8, 
             cr_nise, ci_nise, 
             cr_nise_dba, ci_nise_dba, 
             cr_nise_dbb, ci_nise_dbb,
-            cr_nise_dbc, ci_nise_dbc,
             cr_tnise, ci_tnise
         );
 
@@ -410,23 +394,6 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(t2, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
             }
-
-            if (nise_dbc == 1) {
-                if (!strcmp(non->basis, "Average")) {
-                    // Transfer average -> site basis
-                    matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
-                    // Propagate
-                    copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
-                    // Transfer site -> average basis
-                    trans_matrix_on_vector(H_avg, cr_nise_dbc, ci_nise_dbc, N);
-                } else {
-                    // Propagate
-                    copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dbc(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dbc, ci_nise_dbc);
-                }
-                update_trajectories(t2, cr_nise_dbc, ci_nise_dbc, pop_nise_dbc, cohr_nise_dbc, cohi_nise_dbc);
-            }
             
             if (tnise == 1) {
                 if (!strcmp(non->basis, "Average")) {
@@ -463,40 +430,54 @@ void pop_single_t2(t_non* non) {
 
     // TODO: Get rid of "magic" numbers
     pop_print(
-        fn_pop, non, sampleCount, 5, 
-        pop_nise, pop_nise_dba, pop_nise_dbb, pop_nise_dbc, pop_tnise
+        fn_pop, non, sampleCount, 4, 
+        pop_nise, pop_nise_dba, pop_nise_dbb, pop_tnise
     );
     coh_print(
-        fn_coh, non, sampleCount, 10, 
+        fn_coh, non, sampleCount, 8, 
         cohr_nise, cohi_nise, 
         cohr_nise_dba, cohi_nise_dba, 
         cohr_nise_dbb, cohi_nise_dbb,
-        cohr_nise_dbc, cohi_nise_dbc,
         cohr_tnise, cohi_tnise
     );
 
     free(Hamil_i_e);
     free(H_avg);
     free(e_avg);
+    free(e_old);
     free(H_new);
     free(H_old);
     free(Hcopy);
     free(re_U);
     free(im_U);
     free(e);
-    free(cr_nise);
-    free(ci_nise);
-    free(cr_nise_dba);
-    free(ci_nise_dba);
-    free(cr_nise_dbb);
-    free(ci_nise_dbb);
-    free(pop_nise);
-    free(pop_nise_dba);
-    free(pop_nise_dbb);
-    free(cohr_nise);
-    free(cohr_nise_dba);
-    free(cohr_nise_dbb);
-    free(cohi_nise);
-    free(cohi_nise_dba);
-    free(cohi_nise_dbb);
+    
+    if (nise == 1) {
+        free(cr_nise);
+        free(ci_nise);
+        free(pop_nise);
+        free(cohr_nise);
+        free(cohi_nise);
+    }
+    if (nise_dba == 1) {
+        free(cr_nise_dba);
+        free(ci_nise_dba);
+        free(pop_nise_dba);
+        free(cohr_nise_dba);
+        free(cohi_nise_dba);
+    }
+    if (nise_dbb == 1) {
+        free(cr_nise_dbb);
+        free(ci_nise_dbb);
+        free(pop_nise_dbb);
+        free(cohr_nise_dbb);
+        free(cohi_nise_dbb);
+    }
+    if (tnise == 1) {
+        free(cr_tnise);
+        free(ci_tnise);
+        free(pop_tnise);
+        free(cohr_tnise);
+        free(cohi_tnise);
+    }
 }

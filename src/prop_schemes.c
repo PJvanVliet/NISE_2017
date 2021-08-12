@@ -195,6 +195,7 @@ void propagate_nise_dbb(
     free(Uicopy);
 }
 
+<<<<<<< HEAD
 // Expects wavefunction in adiabatic or local basis (see NISE-DBa)
 void propagate_nise_dbc(
     t_non *non, 
@@ -300,6 +301,9 @@ void propagate_nise_dbc(
 }
 
 // Expects wavefunction in adiabatic or local basis
+=======
+// Expects wavefunction in site basis
+>>>>>>> Remove NISE-DBc
 void propagate_tnise(
     t_non *non, 
     float *H_old, 
