@@ -77,10 +77,10 @@ void reset_wavefn(int N, int count, ...) {
     va_end(ap);
 }
 
-void update_trajectories(int t2, float* cr, float* ci, float* pop, float* cohr, float* cohi) {
-    pop[t2 + 1] += cr[1] * cr[1] + ci[1] * ci[1];
-    cohr[t2 + 1] += cr[0] * cr[1] + ci[0] * ci[1];
-    cohi[t2 + 1] += ci[0] * ci[1] - ci[1] * cr[0];
+void update_trajectories(int t2, int N, float* cr, float* ci, float* pop, float* cohr, float* cohi) {
+    pop[t2 + 1] += cr[N-1] * cr[N-1] + ci[N-1] * ci[N-1];
+    cohr[t2 + 1] += cr[N-2] * cr[N-1] + ci[N-2] * ci[N-1];
+    cohi[t2 + 1] += ci[N-2] * ci[N-1] - ci[N-1] * cr[N-2];
 }
 
 void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
@@ -360,7 +360,7 @@ void pop_single_t2(t_non* non) {
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
                 }
-                update_trajectories(t2, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
+                update_trajectories(t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
             }
             
             if (nise_dba == 1) {
@@ -377,7 +377,7 @@ void pop_single_t2(t_non* non) {
                     copyvec(H_old, Hcopy, N2);
                     propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
-                update_trajectories(t2, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
+                update_trajectories(t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
             }
 
             if (nise_dbb == 1) {
@@ -392,7 +392,7 @@ void pop_single_t2(t_non* non) {
                     // Propagate
                     propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
                 }
-                update_trajectories(t2, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
+                update_trajectories(t2, N, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
             }
             
             if (tnise == 1) {
@@ -409,7 +409,7 @@ void pop_single_t2(t_non* non) {
                     copyvec(H_old, Hcopy, N2);
                     propagate_tnise(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_tnise, ci_tnise);
                 }
-                update_trajectories(t2, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
+                update_trajectories(t2, N, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
             }
         }
     }
