@@ -147,10 +147,10 @@ void swaps(float* H_new, float* H_old, int N) {
     imax = 0, jmax = 0;
     min_diag = 0, max_offdiag = 1;
 
-    // Check if rows must be swapped
+    // Check if columns must be swapped
     while (min_diag < max_offdiag) {
         if (imax != jmax) {
-            row_swap(H_new, imax, jmax, N);
+            col_swap(H_new, imax, jmax, N);
         }
         // Recompute min_diag and max_offdiag
         copyvec(H_old, Hcopy, N2);
