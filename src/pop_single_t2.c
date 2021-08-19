@@ -120,12 +120,12 @@ void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
     diagonalizeLPD(H_avg, e_avg, N);
 }
 
-void row_swap(float* a, int row1, int row2, int N) {
+void col_swap(float* a, int col1, int col2, int N) {
     float temp;
     for (int i = 0; i < N; i++) {
-        temp = a[i + row1*N];
-        a[i + row1*N] = a[i + row2*N];
-        a[i + row2*N] = temp; 
+        temp = a[col1 + i*N];
+        a[col1 + i*N] = a[col2 + i*N];
+        a[col2 + i*N] = temp; 
     }
 }
 
