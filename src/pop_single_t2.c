@@ -93,7 +93,7 @@ void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
     nn2 = N * (N + 1) / 2;
     clearvec(H_avg, N2);
     Hamil_i_e = (float *)calloc(nn2, sizeof(float));
-    L = min(non->tmax2*10, non->length);
+    L = (non->tmax2*10 < non->length) ? non->tmax*10 : non->length;
 
     for (int t2 = 0; t2 < L; t2++) {
         if (read_He(non, Hamil_i_e, H_traj, t2) != 1) {
