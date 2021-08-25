@@ -86,13 +86,16 @@ void update_trajectories(int t2, int N, float* cr, float* ci, float* pop, float*
 void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
     int N2, nn2;
     int a, b, c;
+    int L;
     float *Hamil_i_e;
     
     N2 = N * N;
     nn2 = N * (N + 1) / 2;
     clearvec(H_avg, N2);
     Hamil_i_e = (float *)calloc(nn2, sizeof(float));
-    for (int t2 = 0; t2 < non->length; t2++) {
+    L = min(non->tmax2*10, non->length);
+
+    for (int t2 = 0; t2 < L; t2++) {
         if (read_He(non, Hamil_i_e, H_traj, t2) != 1) {
             printf("Hamiltonian trajectory file too short, could not fill buffer!\n");
             exit(1);
