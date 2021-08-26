@@ -113,8 +113,8 @@ void propagate_nise_dba(
 
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
-        re_U[i] = cos(e[i] * f);
-        im_U[i] = -sin(e[i] * f);
+        re_U[i] = cos(e_old[i] * f);
+        im_U[i] = -sin(e_old[i] * f);
     }
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
