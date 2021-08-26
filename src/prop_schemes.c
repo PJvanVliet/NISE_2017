@@ -70,6 +70,7 @@ void propagate_nise_dba(
     f = non->deltat * icm2ifs * twoPi;
     abs = (float *)calloc(N, sizeof(float));
     Hcc = (float *)calloc(N2, sizeof(float));
+    Hcopy = (float *)calloc(N2, sizeof(float));
     
     // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
