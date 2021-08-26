@@ -101,8 +101,9 @@ void propagate_nise_dba(
 
     // Divide off-diagonals by energy difference
     for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
+        for (j = 0; j < i; j++) {
             Hcopy[j + N*i] /= (e_new[i] - e_new[j]);
+            Hcopy[i + N*j] /= (e_new[j] - e_new[i]);
         }
     }
     
