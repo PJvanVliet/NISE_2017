@@ -49,22 +49,27 @@ void propagate_NISE(
 void propagate_nise_dba(
     t_non *non, 
     float *H_old, 
-    float *H_new, 
-    float *e, 
+    float *H_new,
+    float *e_old,
+    float *e_new,
     float *re_U, 
     float *im_U, 
     float *cr, 
     float *ci
 ) {
     float f;
-    int index, N;
+    int index, N, N2;
     float qc_ij, qc_ji, ediff;
+    float *Hcopy;
+    float *Hcc;
     float* abs;
     int i, j, k;
     
     N = non->singles;
+    N2 = N*N;
     f = non->deltat * icm2ifs * twoPi;
     abs = (float *)calloc(N, sizeof(float));
+    Hcc = (float *)calloc(N2, sizeof(float));
     
     // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
@@ -76,20 +81,41 @@ void propagate_nise_dba(
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
     }
 
+    clearvec(Hcc, N2);
+    // Find site basis derivative of Hamiltonian
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            for (k = 0; k < N; k++) {
+                Hcc[i + N*j] += e_new[k] * H_new[i + N*k] * H_new[j + N*k];
+                Hcc[i + N*j] -= e_old[k] * H_old[i + N*k] * H_old[j + N*k];
+            }
+        }
+    }
+
+    // Find adiabatic basis perturbation (nonadiabatic coupling)
+    copyvec(H_old, Hcopy, N2);
+    matrix_on_matrix(Hcc, Hcopy, N);
+    matrix_on_matrix(H_old, Hcopy, N);
+    free(Hcc);
+
+    // Divide off-diagonals by energy difference
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            Hcopy[j + N*i] /= (e_new[i] - e_new[j]);
+        }
+    }
+    
+    thermal_correction(non, Hcopy, e_new, abs);
+    // Exponentiate the non-adiabatic couplings
+    matrix_exp(Hcopy, N);
+    // Multiply with (real) non-adiabatic propagator
+    trans_matrix_on_vector(Hcopy, cr, ci, N);
+
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e[i] * f);
         im_U[i] = -sin(e[i] * f);
     }
-
-    // Compute unadjusted non-adiabatic coupling
-    matrix_on_matrix(H_new, H_old, N);
-    // Compute temperature adjustments
-    thermal_correction(non, H_old, e, abs);
-    // Exponentiate the non-adiabatic couplings
-    matrix_exp(H_old, N);
-    // Multiply with (real) non-adiabatic propagator
-    trans_matrix_on_vector(H_old, cr, ci, N);
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
 
@@ -98,7 +124,7 @@ void propagate_nise_dba(
         trans_matrix_on_vector(H_new, cr, ci, N);
     }
 
-    free(abs);
+    free(abs), free(Hcopy);
 }
 
 // Expects wavefunction in average eigenbasis or local basis

@@ -372,13 +372,13 @@ void pop_single_t2(t_non* non) {
                     matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                    propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                     // Transfer site -> average basis
                     trans_matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
-                    propagate_nise_dba(non, Hcopy, H_new, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
+                    propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
                 update_trajectories(t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
             }
