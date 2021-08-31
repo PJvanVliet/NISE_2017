@@ -135,56 +135,29 @@ void col_swap(float* a, int col1, int col2, int N) {
 void swaps(float* H_new, float* H_old, int N) {
     int N2;
     float *Hcopy;
-    float temp;
-    int imax, jmax;
     int i, j, k;
-    float min_diag, max_offdiag;
+    float max;
     
     N2 = N * N;
     
     Hcopy = (float *)calloc(N2, sizeof(float));
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(H_new, Hcopy, N);
-    
-    // Set initial values
-    imax = 0, jmax = 0;
-    min_diag = 0, max_offdiag = 1;
 
-    // Check if columns must be swapped
-    while (min_diag < max_offdiag) {
-        if (imax != jmax) {
-            col_swap(H_new, imax, jmax, N);
-        }
-        // Recompute min_diag and max_offdiag
-        copyvec(H_old, Hcopy, N2);
-        matrix_on_matrix(H_new, Hcopy, N);
-        // Determine maximum off-diagonal 
-        // and minimum diagonal elements.
-        imax = 0, jmax = 0;
-        min_diag = 1, max_offdiag = 0;
-        for (i = 0; i < N; i++) {
-            temp = fabs(Hcopy[i + N*i]);
-            if (temp < min_diag) {
-                min_diag = temp;
-            }
-            for (j = 0; j < i; j++) {
-                temp = fabs(Hcopy[j + N*i]);
-                if (temp > max_offdiag) {
-                    imax = i, jmax = j;
-                    max_offdiag = temp;
-                }
-            }
-        }
-    }
-
-    // Check whether we need to change the sign of the eigenvectors
-    copyvec(H_old, Hcopy, N2);
-    matrix_on_matrix(H_new, Hcopy, N);
+    // Find largest value per column
     for (i = 0; i < N; i++) {
-        if (Hcopy[i + N*i] < 0) {
-            for (j = 0; j < N; j++) {
-                H_new[i + N*j] = -H_new[i + N*j];
+        max = 0;
+        k = i;
+        for (j = 0; j < N; i++)  {
+            if (fabs(Hcopy[j + N*i]) > max) {
+                max = fabs(Hcopy[j + N*i]);
+                k = j;
             }
+        }
+        if (k != i) {
+            col_swap(H_new, k, i, N);
+            copyvec(H_old, Hcopy, N2);
+            matrix_on_matrix(H_new, Hcopy, N);
         }
     }
     
