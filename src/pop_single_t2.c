@@ -137,25 +137,24 @@ void swaps(float* H_new, float* H_old, int N) {
     float *Hcopy;
     int i, j, k;
     float max;
-    
+
     N2 = N * N;
-    
     Hcopy = (float *)calloc(N2, sizeof(float));
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(H_new, Hcopy, N);
-
+    
     // Find largest value per column
     for (i = 0; i < N; i++) {
-        max = 0;
+	max = 0;
         k = i;
-        for (j = 0; j < N; i++)  {
+        for (j = 0; j < N; j++) {
             if (fabs(Hcopy[j + N*i]) > max) {
                 max = fabs(Hcopy[j + N*i]);
                 k = j;
             }
         }
         if (k != i) {
-            col_swap(H_new, k, i, N);
+	    col_swap(H_new, k, i, N);
             copyvec(H_old, Hcopy, N2);
             matrix_on_matrix(H_new, Hcopy, N);
         }
@@ -234,7 +233,11 @@ void pop_single_t2(t_non* non) {
     re_U = (float *) calloc(N, sizeof(float));
     im_U = (float *) calloc(N, sizeof(float));
     e = (float *) calloc(N, sizeof(float));
-
+    
+    // Determine number of samples
+    sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
+    printf("Total number of samples: %i\n", sampleCount);
+    
     // Decide whether to use NISE
     if (nise == 1) {
         cr_nise = (float *) calloc(N, sizeof(float));
@@ -242,6 +245,7 @@ void pop_single_t2(t_non* non) {
         pop_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohr_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohi_nise = (float *) calloc(non->tmax2 + 1, sizeof(float));
+	pop_nise[0] = 1.0 * sampleCount;
     }
     // Decide whether to use NISE-DBa
     if (nise_dba == 1) {
@@ -250,6 +254,7 @@ void pop_single_t2(t_non* non) {
         pop_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohr_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohi_nise_dba = (float *) calloc(non->tmax2 + 1, sizeof(float));
+	pop_nise_dba[0] = 1.0 * sampleCount;
     }
     // Decide whether to use NISE-DBb
     if (nise_dbb == 1) {
@@ -258,6 +263,7 @@ void pop_single_t2(t_non* non) {
         pop_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohr_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float)); 
         cohi_nise_dbb = (float *) calloc(non->tmax2 + 1, sizeof(float));
+	pop_nise_dbb[0] = 1.0 * sampleCount;
     }
     // Decide whether to use tNISE
     if (tnise == 1) {
@@ -266,14 +272,9 @@ void pop_single_t2(t_non* non) {
         pop_tnise = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohr_tnise = (float *) calloc(non->tmax2 + 1, sizeof(float));
         cohi_tnise = (float *) calloc(non->tmax2 + 1, sizeof(float));
+	pop_tnise[0] = 1.0 * sampleCount;
     }
     
-    // Determine number of samples
-    sampleCount = (non->length - non->tmax2 - 1) / non->sample + 1;
-    printf("Total number of samples: %i\n", sampleCount);
-    // Set the initial population
-    pop_nise[0] = pop_nise_dba[0] = pop_nise_dbb[0] = pop_tnise[0] = 1.0 * sampleCount;
-
     // Read the Hamiltonian file
     FILE* H_traj = fopen(non->energyFName, "rb");
     if (H_traj == NULL) {
@@ -286,9 +287,9 @@ void pop_single_t2(t_non* non) {
 
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
-        if (samples % 100 == 0) {
+        // if (samples % 100 == 0) {
             printf("samples = %i\n", samples);
-        }
+        // }
         ti = samples * non->sample;
 
         // Load first Hamiltonian
@@ -309,7 +310,8 @@ void pop_single_t2(t_non* non) {
 
         // Start NISE procedure
         for (int t2 = 0; t2 < non->tmax2; t2++) {
-            int tm = ti + t2 + 1;
+            printf("t = %i\n", t2);
+	    int tm = ti + t2 + 1;
             // Copy old Hamiltonian
             copyvec(H_new, H_old, N2);
             copyvec(e, e_old, N);
