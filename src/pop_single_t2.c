@@ -217,7 +217,12 @@ void pop_single_t2(t_non* non) {
     nise = 1;
     nise_dba = 1;
     nise_dbb = 1;
-    tnise = 1;
+    // Cannot run tNISE for more than two sites
+    if (non->singles < 3) {
+        tnise = 1;
+    } else {
+        tnise = 0;
+    }
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
@@ -315,8 +320,10 @@ void pop_single_t2(t_non* non) {
             build_diag_H(Hamil_i_e, H_new, e, N);
 
             // Check if we need to perform any swaps, to maximise overlap
-            swaps(H_new, H_old, N);
-            
+            if (!strcmp(non->basis, "Adiabatic") || tnise == 1) {
+                swaps(H_new, H_old, N);
+            }
+
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
