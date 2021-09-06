@@ -1056,20 +1056,28 @@ void matrix_exp(float* m, int N) {
         printf("Something went wrong trying to diagonalize a matrix...\n");
         exit(0);
     }
-
+    
+    // Change eigenvectors from Fortran to C format
+    copyvec(vrr, vri, N*N);
+    for (i = 0; i < N; i++) {
+	for (j = 0; j < N; j++) {
+	    vrr[i + N*j] = vri[j + N*i];
+	}
+    }
+    clearvec(vri, N*N);
     // sgeev gives a real output for eigenvectors.
     // Transform to a complex set of eigenvectors.
     for (int j = 0; j < N-1; j++) {
         // Determine if two eigenvalues are complex conjugates.
         if (wr[j] == wr[j+1] && wi[j] == -wi[j+1]) {
             for (i = 0; i < N; i++) {
-                vri[j + N*i] = vrr[j+1 + N*i];
-                vri[j+1 + N*i] = -vrr[j+1 + N*i];
+                vri[j + N*i] = -vrr[j+1 + N*i];
+                vri[j+1 + N*i] = vrr[j+1 + N*i];
                 vrr[j+1 + N*i] = vrr[j + N*i];
             }
         }
     }
-
+    
     expr = (float *)calloc(N, sizeof(float));
     expi = (float *)calloc(N, sizeof(float));
 
@@ -1084,10 +1092,10 @@ void matrix_exp(float* m, int N) {
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                m[j + N*i] += expr[k] * vrr[k + N*i] * vrr[k + N*j];
-                m[j + N*i] += expr[k] * vri[k + N*i] * vri[k + N*j];
-                m[j + N*i] -= expi[k] * vrr[k + N*i] * vri[k + N*j];
-                m[j + N*i] += expi[k] * vri[k + N*i] * vrr[k + N*j];
+              	m[i + N*j] += expr[k] * vrr[k + N*i] * vrr[k + N*j];
+                m[i + N*j] += expr[k] * vri[k + N*i] * vri[k + N*j];
+                m[i + N*j] -= expi[k] * vrr[k + N*i] * vri[k + N*j];
+                m[i + N*j] += expi[k] * vri[k + N*i] * vrr[k + N*j];
             }
         }
     }

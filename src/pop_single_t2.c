@@ -287,9 +287,9 @@ void pop_single_t2(t_non* non) {
 
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
-        // if (samples % 100 == 0) {
+        if (samples % 100 == 0) {
             printf("samples = %i\n", samples);
-        // }
+        }
         ti = samples * non->sample;
 
         // Load first Hamiltonian
@@ -301,16 +301,17 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(
-            N, 8, 
+            N, 6, 
             cr_nise, ci_nise, 
             cr_nise_dba, ci_nise_dba, 
-            cr_nise_dbb, ci_nise_dbb,
-            cr_tnise, ci_tnise
+            cr_nise_dbb, ci_nise_dbb
         );
+	if (tnise == 1) {
+	    reset_wavefn(N, 2, cr_tnise, ci_tnise);
+	}
 
         // Start NISE procedure
         for (int t2 = 0; t2 < non->tmax2; t2++) {
-            printf("t = %i\n", t2);
 	    int tm = ti + t2 + 1;
             // Copy old Hamiltonian
             copyvec(H_new, H_old, N2);
@@ -320,7 +321,6 @@ void pop_single_t2(t_non* non) {
                 exit(1);
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
-
             // Check if we need to perform any swaps, to maximise overlap
             if (!strcmp(non->basis, "Adiabatic") || tnise == 1) {
                 swaps(H_new, H_old, N);
@@ -347,7 +347,6 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
             }
-            
             if (nise_dba == 1) {
                 if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
@@ -364,7 +363,6 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
             }
-
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
@@ -379,7 +377,6 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(t2, N, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
             }
-            
             if (tnise == 1) {
                 if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
@@ -414,17 +411,33 @@ void pop_single_t2(t_non* non) {
     }
 
     // TODO: Get rid of "magic" numbers
-    pop_print(
-        fn_pop, non, sampleCount, 4, 
-        pop_nise, pop_nise_dba, pop_nise_dbb, pop_tnise
-    );
-    coh_print(
-        fn_coh, non, sampleCount, 8, 
-        cohr_nise, cohi_nise, 
-        cohr_nise_dba, cohi_nise_dba, 
-        cohr_nise_dbb, cohi_nise_dbb,
-        cohr_tnise, cohi_tnise
-    );
+    if (tnise == 1) {
+	pop_print(
+            fn_pop, non, sampleCount, 4, 
+            pop_nise, pop_nise_dba, pop_nise_dbb, pop_tnise
+    	);
+    } else {
+	pop_print(
+	    fn_pop, non, sampleCount, 3,
+	    pop_nise, pop_nise_dba, pop_nise_dbb
+	);
+    }
+    if (tnise == 1) {
+	coh_print(
+            fn_coh, non, sampleCount, 8, 
+            cohr_nise, cohi_nise, 
+            cohr_nise_dba, cohi_nise_dba, 
+            cohr_nise_dbb, cohi_nise_dbb,
+            cohr_tnise, cohi_tnise
+        );
+    } else {
+	coh_print(
+	    fn_coh, non, sampleCount, 6,
+	    cohr_nise, cohi_nise,
+	    cohr_nise_dba, cohi_nise_dba,
+	    cohr_nise_dbb, cohi_nise_dbb
+	);
+    }
 
     free(Hamil_i_e);
     free(H_avg);

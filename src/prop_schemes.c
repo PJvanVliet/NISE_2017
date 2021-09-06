@@ -101,18 +101,17 @@ void propagate_nise_dba(
 
     // Divide off-diagonals by energy difference
     for (i = 0; i < N; i++) {
-        for (j = 0; j < i; j++) {
+        Hcopy[i + N*i] = 0;
+	for (j = 0; j < i; j++) {
             Hcopy[j + N*i] /= (e_new[i] - e_new[j]);
             Hcopy[i + N*j] /= (e_new[j] - e_new[i]);
         }
     }
-    
     thermal_correction(non, Hcopy, e_new, abs);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(Hcopy, cr, ci, N);
-
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e_old[i] * f);
@@ -120,7 +119,7 @@ void propagate_nise_dba(
     }
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
-
+       
     // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         trans_matrix_on_vector(H_new, cr, ci, N);

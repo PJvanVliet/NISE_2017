@@ -1,6 +1,6 @@
 # Define executables
 add_executable(stochastic EXCLUDE_FROM_ALL src/stochastic.c $<TARGET_OBJECTS:random_lib>)
-add_executable(stochastic_general EXCLUDE_FROM_ALL src/stochastic.c $<TARGET_OBJECTS:random_lib>)
+add_executable(stochastic_general EXCLUDE_FROM_ALL src/stochastic_general.c $<TARGET_OBJECTS:random_lib>)
 
 # Link math
 if(NOT WIN32)
