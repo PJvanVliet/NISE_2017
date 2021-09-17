@@ -64,10 +64,13 @@ void propagate_nise_dba(
     float *Hcc;
     float* abs;
     int i, j, k;
-    
+    int symm;
+
     N = non->singles;
     N2 = N*N;
     f = non->deltat * icm2ifs * twoPi;
+    symm = 0;
+    
     abs = (float *)calloc(N, sizeof(float));
     Hcc = (float *)calloc(N2, sizeof(float));
     Hcopy = (float *)calloc(N2, sizeof(float));
@@ -92,7 +95,8 @@ void propagate_nise_dba(
             }
         }
     }
-
+    printf("Site basis derivative of Hamiltonian:\n");
+    printmat(Hcc, N);
     // Find adiabatic basis perturbation (nonadiabatic coupling)
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(Hcc, Hcopy, N);
@@ -107,7 +111,12 @@ void propagate_nise_dba(
             Hcopy[i + N*j] /= (e_new[j] - e_new[i]);
         }
     }
-    thermal_correction(non, Hcopy, e_new, abs);
+
+    printf("Original nonadiabatic coupling:\n");
+    printmat(Hcopy, N);
+    thermal_correction(non, Hcopy, e_new, abs, symm);
+    printf("Corrected nonadiabatic coupling:\n");
+    printmat(Hcopy, N);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
     // Multiply with (real) non-adiabatic propagator
@@ -150,10 +159,12 @@ void propagate_nise_dbb(
     float qc_ij, qc_ji, ediff;
     float* abs;
     int i, j, k;
-    
+    int symm;
+
     N = non->singles;
     N2 = N*N;
     f = non->deltat * icm2ifs * twoPi;
+    symm = 1;
 
     abs = (float *) calloc(N, sizeof(float));
     Hcopy = (float *) calloc(N2, sizeof(float));
@@ -195,7 +206,7 @@ void propagate_nise_dbb(
     }
 
     // Compute temperature adjustments
-    thermal_correction(non, Hcopy, e, abs);
+    thermal_correction(non, Hcopy, e, abs, symm);
 
     // Exponentiate the couplings
     diagonalizeLPD(Hcopy, ecopy, N);
@@ -263,7 +274,7 @@ void propagate_tnise(
         for (j = 0; j < N; j++) {
             if (j != i) {
                 ediff = e_new[j] - e_old[i];
-                H_old[i + N*j] *= exp(-ediff / kBT / 2);
+                H_old[i + N*j] *= exp(-ediff / kBT / 4);
             }
         }
     }
@@ -292,7 +303,8 @@ void thermal_correction(
     t_non* non, 
     float *H_old, 
     float *e, 
-    float *abs
+    float *abs,
+    int symm
 ) {
     int N;
     float qc_ij, qc_ji, ediff;
@@ -305,7 +317,7 @@ void thermal_correction(
     for (i = 0; i < N; i++) {
         // Reset diagonal
         H_old[i + N*i] = 0;
-        for (j = 0; j < N; j++) {
+        for (j = 0; j < i; j++) {
             ediff = e[i] - e[j];
             boltz = exp(ediff / kBT);
             qc_ij = sqrt(2 / (1 + boltz));
@@ -317,6 +329,12 @@ void thermal_correction(
             } else {
                 H_old[i + N*j] *= (qc_ij - qc_ji) / 2;
             }
+	    // Decide whether to symmetrise or antisymmetrise
+	    if (symm == 1) {
+	    	H_old[j + N*i] = H_old[i + N*j];
+	    } else {
+		H_old[j + N*i] = -1 * H_old[i + N*j];
+	    }
         }
     }
 }

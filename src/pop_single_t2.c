@@ -60,7 +60,7 @@ void coh_print(char* filename, t_non* non, int sampleCount, int count, ...) {
     fclose(out);
 }
 
-void reset_wavefn(int N, int count, ...) {
+void reset_wavefn(t_non* non, int N, int count, ...) {
     int j;
     float* cr;
     float* ci;
@@ -72,15 +72,15 @@ void reset_wavefn(int N, int count, ...) {
         ci = va_arg(ap, float*);
         clearvec(cr, N);
         clearvec(ci, N);
-        cr[1] = 1.0;
+	cr[N-1] = 1.0;
     }
     va_end(ap);
 }
 
-void update_trajectories(int t2, int N, float* cr, float* ci, float* pop, float* cohr, float* cohi) {
-    pop[t2 + 1] += cr[N-1] * cr[N-1] + ci[N-1] * ci[N-1];
-    cohr[t2 + 1] += cr[N-2] * cr[N-1] + ci[N-2] * ci[N-1];
-    cohi[t2 + 1] += ci[N-2] * ci[N-1] - ci[N-1] * cr[N-2];
+void update_trajectories(t_non* non, int t2, int N, float* cr, float* ci, float* pop, float* cohr, float* cohi) {
+    pop[t2 + 1] += cr[N-1]*cr[N-1] + ci[N-1]*ci[N-1];
+    cohr[t2 + 1] += cr[N-1]*cr[N-2] + ci[N-1]*ci[N-2];
+    cohi[t2 + 1] += cr[N-1]*ci[N-2] - ci[N-1]*cr[N-2];
 }
 
 void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
@@ -301,13 +301,13 @@ void pop_single_t2(t_non* non) {
 
         // Reset the wavefunctions
         reset_wavefn(
-            N, 6, 
+            non, N, 6, 
             cr_nise, ci_nise, 
             cr_nise_dba, ci_nise_dba, 
             cr_nise_dbb, ci_nise_dbb
         );
 	if (tnise == 1) {
-	    reset_wavefn(N, 2, cr_tnise, ci_tnise);
+	    reset_wavefn(non, N, 2, cr_tnise, ci_tnise);
 	}
 
         // Start NISE procedure
@@ -325,6 +325,11 @@ void pop_single_t2(t_non* non) {
             if (!strcmp(non->basis, "Adiabatic") || tnise == 1) {
                 swaps(H_new, H_old, N);
             }
+
+	    // printf("Old Hamiltonian:\n");
+	    // printmat(H_old, N);
+	    // printf("New Hamiltonian:\n");
+	    // printmat(H_new, N);
 
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
@@ -345,7 +350,7 @@ void pop_single_t2(t_non* non) {
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
                 }
-                update_trajectories(t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
+                update_trajectories(non, t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
             }
             if (nise_dba == 1) {
                 if (!strcmp(non->basis, "Average")) {
@@ -361,7 +366,7 @@ void pop_single_t2(t_non* non) {
                     copyvec(H_old, Hcopy, N2);
                     propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
-                update_trajectories(t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
+                update_trajectories(non, t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
             }
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
@@ -375,7 +380,7 @@ void pop_single_t2(t_non* non) {
                     // Propagate
                     propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
                 }
-                update_trajectories(t2, N, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
+                update_trajectories(non, t2, N, cr_nise_dbb, ci_nise_dbb, pop_nise_dbb, cohr_nise_dbb, cohi_nise_dbb);
             }
             if (tnise == 1) {
                 if (!strcmp(non->basis, "Average")) {
@@ -391,7 +396,7 @@ void pop_single_t2(t_non* non) {
                     copyvec(H_old, Hcopy, N2);
                     propagate_tnise(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_tnise, ci_tnise);
                 }
-                update_trajectories(t2, N, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
+                update_trajectories(non, t2, N, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
             }
         }
     }

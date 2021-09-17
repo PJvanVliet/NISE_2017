@@ -1029,19 +1029,18 @@ void matrix_exp(float* m, int N) {
     float *vl, *vrr, *vri;
     float *expr, *expi;
     int i, j, k;
+    int N2;
+    int ldvl;
+
     // Find lwork;
     lwork = -1;
-    work = (float *)calloc(1, sizeof(float));
-
-    // printf("Setting up LAPACK routine.\n");
+    work = (float *)calloc(1, sizeof(float)); 
     
-    
-    int ldvl = 1;
+    ldvl = 1;
+    N2 = N*N;
 
     sgeev_("N", "V", &N, m, &N, wr, wi, vl, &ldvl, vrr, &N, work, &lwork, &INFO);
     lwork = work[0];
-    //  printf("LAPACK work dimension %d\n",lwork);
-    //  lwork=8*N;
     free(work);
 
     work = (float *)calloc(lwork, sizeof(float));
@@ -1058,13 +1057,13 @@ void matrix_exp(float* m, int N) {
     }
     
     // Change eigenvectors from Fortran to C format
-    copyvec(vrr, vri, N*N);
+    copyvec(vrr, vri, N2);
     for (i = 0; i < N; i++) {
 	for (j = 0; j < N; j++) {
 	    vrr[i + N*j] = vri[j + N*i];
 	}
     }
-    clearvec(vri, N*N);
+    clearvec(vri, N2);
     // sgeev gives a real output for eigenvectors.
     // Transform to a complex set of eigenvectors.
     for (int j = 0; j < N-1; j++) {
