@@ -96,8 +96,8 @@ void propagate_nise_dba(
             }
         }
     }
-    printf("Site basis derivative of Hamiltonian:\n");
-    printmat(Hcc, N);
+    // printf("Site basis derivative of Hamiltonian:\n");
+    // printmat(Hcc, N);
     // Find adiabatic basis perturbation (nonadiabatic coupling)
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(Hcc, Hcopy, N);
@@ -113,11 +113,11 @@ void propagate_nise_dba(
         }
     }
 
-    printf("Original nonadiabatic coupling:\n");
-    printmat(Hcopy, N);
+    // printf("Original nonadiabatic coupling:\n");
+    // printmat(Hcopy, N);
     thermal_correction(non, Hcopy, e_new, abs, symm);
-    printf("Corrected nonadiabatic coupling:\n");
-    printmat(Hcopy, N);
+    // printf("Corrected nonadiabatic coupling:\n");
+    // printmat(Hcopy, N);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
     // Multiply with (real) non-adiabatic propagator
