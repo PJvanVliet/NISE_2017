@@ -87,11 +87,12 @@ void propagate_nise_dba(
 
     clearvec(Hcc, N2);
     // Find site basis derivative of Hamiltonian
+    // Important: H = C D C+, not H = C+ D C
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                Hcc[i + N*j] += e_new[k] * H_new[i + N*k] * H_new[j + N*k];
-                Hcc[i + N*j] -= e_old[k] * H_old[i + N*k] * H_old[j + N*k];
+                Hcc[i + N*j] += e_new[k] * H_new[k + N*i] * H_new[k + N*j];
+                Hcc[i + N*j] -= e_old[k] * H_old[k + N*i] * H_old[k + N*j];
             }
         }
     }
@@ -185,11 +186,12 @@ void propagate_nise_dbb(
 
     clearvec(Hcc, N2);
     // Find site basis perturbation
+    // Again: important that H = C D C+, not H = C+ D C
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
-                Hcc[i + N*j] += e[k] * H_new[i + N*k] * H_new[j + N*k];
-                Hcc[i + N*j] -= e_avg[k] * H_avg[i + N*k] * H_avg[j + N*k];
+                Hcc[i + N*j] += e[k] * H_new[k + N*i] * H_new[k + N*j];
+                Hcc[i + N*j] -= e_avg[k] * H_avg[k + N*i] * H_avg[k + N*j];
             }
         }
     }
