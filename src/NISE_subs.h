@@ -8,6 +8,8 @@ void copyvec(float *a,float *b,int N);
 void clearvec(float *a,int N);
 void unitmat(float *a,int N);
 void printmat(float *m, int N);
+void printrvec(float *v, int N);
+void printcvec(float *vr, float* vi, int N);
 void vector_on_vector(float *rr,float *ir,float *vr,float *vi,int N);
 void matrix_on_vector(float *c,float *vr,float *vi,int N);
 void trans_matrix_on_vector(float *c,float *vr,float *vi,int N);

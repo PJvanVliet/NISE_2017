@@ -64,6 +64,22 @@ void printmat(float *m, int N) {
     printf("\n");
 }
 
+void printrvec(float *v, int N) {
+    int i;
+    for (i = 0; i < N; i++) {
+	printf("%f ", v[i]);
+    }
+    printf("\n\n");
+}
+
+void printcvec(float *vr, float *vi, int N) {
+    int i;
+    for (i = 0; i < N; i++) {
+	printf("%f+%fj ", vr[i], vi[i]);
+    }
+    printf("\n\n");
+}
+
 // Multiply a complex diagonal matrix on a complex vector
 void vector_on_vector(float *rr,float *ir,float *vr,float *vi,int N){
     int a;

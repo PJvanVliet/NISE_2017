@@ -287,6 +287,9 @@ void pop_single_t2(t_non* non) {
 
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
+        if (samples % 100 == 0) {
+            printf("samples = %i\n", samples);
+        }
         ti = samples * non->sample;
 
         // Load first Hamiltonian
@@ -318,10 +321,9 @@ void pop_single_t2(t_non* non) {
                 exit(1);
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
-            // Check if we need to perform any swaps, to maximise overlap
-            if (!strcmp(non->basis, "Adiabatic") || tnise == 1) {
-                swaps(H_new, H_old, N);
-            }
+            // Maximise overlap between previous and current eigenvectors
+            // This is required if any adiabatic basis population is involved.
+	    swaps(H_new, H_old, N);
 
 	    // printf("Old Hamiltonian:\n");
 	    // printmat(H_old, N);
@@ -395,19 +397,7 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(non, t2, N, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
             }
-	}
-
-        // Progress bar
-        int progress = 10*samples/sampleCount + 1;
-        printf("\r[");
-	for (i = 0; i < progress; i++) {
-	    printf("#");
-	}
-	for (i = 0; i < 10-progress; i++) {
-	    printf(" ");
-	}
-	printf("] [%i / %i]", samples+1, sampleCount);
-	fflush(stdout);
+        }
     }
     
     char* fn_pop;
