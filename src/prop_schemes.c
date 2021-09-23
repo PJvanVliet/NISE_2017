@@ -28,7 +28,7 @@ void propagate_NISE(
     float f;
     int index, N;
     int i;
-
+    
     N = non->singles;
     f = non->deltat * icm2ifs * twoPi;
 
@@ -75,8 +75,6 @@ void propagate_nise_dba(
     Hcc = (float *)calloc(N2, sizeof(float));
     Hcopy = (float *)calloc(N2, sizeof(float));
     
-    // printf("Wavefunction in site basis:\n");
-    // printcvec(cr, ci, N); 
     // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_old, cr, ci, N);
@@ -98,8 +96,6 @@ void propagate_nise_dba(
             }
         }
     }
-    // printf("Site basis derivative of Hamiltonian:\n");
-    // printmat(Hcc, N);
     // Find adiabatic basis perturbation (nonadiabatic coupling)
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(Hcc, Hcopy, N);
@@ -115,19 +111,11 @@ void propagate_nise_dba(
         }
     }
 
-    // printf("Original nonadiabatic coupling:\n");
-    // printmat(Hcopy, N);
     thermal_correction(non, Hcopy, e_new, abs, symm);
-    // printf("Corrected nonadiabatic coupling:\n");
-    // printmat(Hcopy, N);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
-    // printf("Wavefunction in adiabatic basis:\n");
-    // printcvec(cr, ci, N);
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(Hcopy, cr, ci, N);
-    // printf("Wavefunction in adiabatic basis, w/o exponent\n");
-    // printcvec(cr, ci, N);
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e_old[i] * f);
@@ -135,14 +123,10 @@ void propagate_nise_dba(
     }
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
-    // printf("Final wavefunction in adiabatic basis:\n");
-    // printcvec(cr, ci, N);  
     // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         trans_matrix_on_vector(H_new, cr, ci, N);
     }
-    // printf("Final wavefunction in site basis:\n");
-    // printcvec(cr, ci, N);
 
     free(abs), free(Hcopy);
 }

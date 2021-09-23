@@ -216,12 +216,13 @@ void pop_single_t2(t_non* non) {
     nise = 1;
     nise_dba = 1;
     nise_dbb = 1;
+    tnise = 0;
     // Cannot run tNISE for more than two sites
-    if (non->singles < 3) {
-        tnise = 1;
-    } else {
-        tnise = 0;
-    }
+    // if (non->singles < 3) {
+    //     tnise = 1;
+    // } else {
+    //     tnise = 0;
+    // }
 
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
@@ -287,10 +288,20 @@ void pop_single_t2(t_non* non) {
 
     // Loop over samples
     for (samples = 0; samples < sampleCount; samples++) {
-        if (samples % 100 == 0) {
-            printf("samples = %i\n", samples);
-        }
-        ti = samples * non->sample;
+        
+	// Progress bar
+	int progress = 10*samples/sampleCount;
+	printf("\r[");
+	for (i = 0; i < progress; i++) {
+	    printf("#");
+	}
+	for (i = 0; i < 10-progress; i++) {
+	    printf(" ");
+	}
+	printf("] [%i / %i]", samples, sampleCount);
+	fflush(stdout);
+	
+	ti = samples * non->sample;
 
         // Load first Hamiltonian
         if (read_He(non, Hamil_i_e, H_traj, ti) != 1) {
@@ -321,14 +332,7 @@ void pop_single_t2(t_non* non) {
                 exit(1);
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
-            // Maximise overlap between previous and current eigenvectors
-            // This is required if any adiabatic basis population is involved.
 	    swaps(H_new, H_old, N);
-
-	    // printf("Old Hamiltonian:\n");
-	    // printmat(H_old, N);
-	    // printf("New Hamiltonian:\n");
-	    // printmat(H_new, N);
 
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
@@ -397,8 +401,20 @@ void pop_single_t2(t_non* non) {
                 }
                 update_trajectories(non, t2, N, cr_tnise, ci_tnise, pop_tnise, cohr_tnise, cohi_tnise);
             }
-        }
+	}
+
+	progress += 1;
+	printf("\r[");
+	for (i = 0; i < progress; i++) {
+	    printf("#");
+	}
+	for (i = 0; i < 10-progress; i++) {
+	    printf(" ");
+	}
+	printf("] [%i / %i]", samples+1, sampleCount);
+	fflush(stdout);
     }
+    printf("\n");
     
     char* fn_pop;
     char* fn_coh;

@@ -1075,16 +1075,18 @@ void matrix_exp(float* m, int N) {
     // Change eigenvectors from Fortran to C format
     copyvec(vrr, vri, N2);
     for (i = 0; i < N; i++) {
-	for (j = 0; j < N; j++) {
-	    vrr[i + N*j] = vri[j + N*i];
-	}
+    	for (j = 0; j < N; j++) {
+    	    vrr[i + N*j] = vri[j + N*i];
+    	}
     }
+
     clearvec(vri, N2);
     // sgeev gives a real output for eigenvectors.
     // Transform to a complex set of eigenvectors.
     for (int j = 0; j < N-1; j++) {
         // Determine if two eigenvalues are complex conjugates.
-        if (wr[j] == wr[j+1] && wi[j] == -wi[j+1]) {
+        if (wr[j] == wr[j+1] && wi[j] == -wi[j+1] && wi[j] != 0.0) {
+	    // Make sure that "zero" eigenvalues do not harm propagation
             for (i = 0; i < N; i++) {
                 vri[j + N*i] = -vrr[j+1 + N*i];
                 vri[j+1 + N*i] = vrr[j+1 + N*i];
@@ -1101,7 +1103,6 @@ void matrix_exp(float* m, int N) {
         expr[i] = cos(wi[i]);
         expi[i] = sin(wi[i]);
     }
-
     // Compute non-adiabatic propagator
     clearvec(m, N*N);
     for (i = 0; i < N; i++) {
