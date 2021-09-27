@@ -77,7 +77,7 @@ void propagate_nise_dba(
     
     // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        matrix_on_vector(H_old, cr, ci, N);
+        trans_matrix_on_vector(H_old, cr, ci, N);
     }
 
     // Compute absolute values of the wavefunction coeffs
@@ -112,6 +112,8 @@ void propagate_nise_dba(
     }
 
     thermal_correction(non, Hcopy, e_new, abs, symm);
+    // printf("Nonadiabatic couplings:\n");
+    // printmat(Hcopy, N);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
     // Multiply with (real) non-adiabatic propagator
@@ -125,7 +127,7 @@ void propagate_nise_dba(
     vector_on_vector(re_U,im_U,cr,ci,N);
     // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
-        trans_matrix_on_vector(H_new, cr, ci, N);
+        matrix_on_vector(H_new, cr, ci, N);
     }
 
     free(abs), free(Hcopy);
