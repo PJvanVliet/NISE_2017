@@ -43,6 +43,8 @@ void propagate_NISE(
     vector_on_vector(re_U, im_U, cr, ci, N);
 
     trans_matrix_on_vector(H, cr, ci, N);
+    printf("Final wavefunction:\n");
+    printcvec(cr, ci, N);
 }
 
 // Expects wavefunction in adiabatic or local basis
@@ -131,6 +133,8 @@ void propagate_nise_dba(
     }
 
     free(abs), free(Hcopy);
+    // printf("Final wavefunction:\n");
+    // printcvec(cr, ci, N);
 }
 
 // Expects wavefunction in average eigenbasis or local basis
