@@ -43,8 +43,6 @@ void propagate_NISE(
     vector_on_vector(re_U, im_U, cr, ci, N);
 
     trans_matrix_on_vector(H, cr, ci, N);
-    printf("Final wavefunction:\n");
-    printcvec(cr, ci, N);
 }
 
 // Expects wavefunction in adiabatic or local basis
@@ -112,7 +110,6 @@ void propagate_nise_dba(
             Hcopy[i + N*j] /= (e_new[j] - e_new[i]);
         }
     }
-
     thermal_correction(non, Hcopy, e_new, abs, symm);
     // printf("Nonadiabatic couplings:\n");
     // printmat(Hcopy, N);
@@ -127,13 +124,16 @@ void propagate_nise_dba(
     }
     // Multiply with matrix exponent
     vector_on_vector(re_U,im_U,cr,ci,N);
+    // printf("Wavefunction adiabatic basis:\n");
+    // printcvec(cr, ci, N);
+
     // Return adiabatic -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_new, cr, ci, N);
     }
 
     free(abs), free(Hcopy);
-    // printf("Final wavefunction:\n");
+    // printf("Final wavefunction NISE-DBa:\n");
     // printcvec(cr, ci, N);
 }
 
@@ -175,9 +175,8 @@ void propagate_nise_dbb(
 
     // Transfer local -> average basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Adiabatic")) {
-        trans_matrix_on_vector(H_avg, cr, ci, N);
+        matrix_on_vector(H_avg, cr, ci, N);
     }
-
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
         abs[i] = sqrt(cr[i]*cr[i] + ci[i]*ci[i]);
@@ -185,7 +184,7 @@ void propagate_nise_dbb(
 
     clearvec(Hcc, N2);
     // Find site basis perturbation
-    // Again: important that H = C D C+, not H = C+ D C
+    // Important: H = C D C+, not H = C+ D C
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
@@ -207,8 +206,7 @@ void propagate_nise_dbb(
     }
 
     // Compute temperature adjustments
-    thermal_correction(non, Hcopy, e, abs, symm);
-
+    thermal_correction(non, Hcopy, e_avg, abs, symm);
     // Exponentiate the couplings
     diagonalizeLPD(Hcopy, ecopy, N);
     // Multiply with adjusted couplings.
@@ -224,7 +222,7 @@ void propagate_nise_dbb(
 
     // Convert average -> local basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Adiabatic")) {
-        matrix_on_vector(H_avg, cr, ci, N);
+        trans_matrix_on_vector(H_avg, cr, ci, N);
     }
 
     free(abs);

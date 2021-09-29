@@ -134,7 +134,7 @@ void col_swap(float* a, int col1, int col2, int N) {
     }
 }
 
-void swaps(float* H_new, float* H_old, int N) {
+void swaps(float* H_new, float* H_old, float* e_new, int N) {
     int N2;
     float *Hcopy;
     float temp;
@@ -154,7 +154,12 @@ void swaps(float* H_new, float* H_old, int N) {
     // Check if columns must be swapped
     while (min_diag < max_offdiag) {
         if (imax != jmax) {
+	    // Swap columns
             col_swap(H_new, imax, jmax, N);
+	    // Swap associated eigenvalues
+	    temp = e_new[imax];
+	    e_new[imax] = e_new[jmax];
+	    e_new[jmax] = temp;
         }
         // Recompute min_diag and max_offdiag
         copyvec(H_old, Hcopy, N2);
@@ -361,13 +366,7 @@ void pop_single_t2(t_non* non) {
                 exit(1);
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
-	    swaps(H_new, H_old, N);
-	    if (t2 == 87) {
-		printf("Eigenvectors:\n");
-		printmat(H_new, N);
-		printf("Eigenvalues:\n");
-		printrvec(e, N);
-	    }
+	    swaps(H_new, H_old, e, N);
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
