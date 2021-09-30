@@ -57,7 +57,7 @@ void printmat(float *m, int N) {
     int i, j;
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
-            printf("%f ", m[j + N*i]);
+            printf("%.9g ", m[j + N*i]);
         }
         printf("\n");
     }
@@ -67,7 +67,7 @@ void printmat(float *m, int N) {
 void printrvec(float *v, int N) {
     int i;
     for (i = 0; i < N; i++) {
-	printf("%f ", v[i]);
+	printf("%.9g ", v[i]);
     }
     printf("\n\n");
 }
@@ -75,7 +75,7 @@ void printrvec(float *v, int N) {
 void printcvec(float *vr, float *vi, int N) {
     int i;
     for (i = 0; i < N; i++) {
-	printf("%f+%fj ", vr[i], vi[i]);
+	printf("%.9g+%.9gj ", vr[i], vi[i]);
     }
     printf("\n\n");
 }
@@ -1094,6 +1094,13 @@ void matrix_exp(float* m, int N) {
             }
         }
     }
+
+    // printf("Eigenvectors (real):\n");
+    // printmat(vrr, N);
+    // printf("Eigenvectors (imaginary:\n");
+    // printmat(vri, N);
+    // printf("Eigenvalues:\n");
+    // printcvec(wr, wi, N);
     
     expr = (float *)calloc(N, sizeof(float));
     expi = (float *)calloc(N, sizeof(float));
@@ -1108,6 +1115,7 @@ void matrix_exp(float* m, int N) {
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < N; k++) {
+		// Imporant: C D C+, not C+ D C
               	m[i + N*j] += expr[k] * vrr[k + N*i] * vrr[k + N*j];
                 m[i + N*j] += expr[k] * vri[k + N*i] * vri[k + N*j];
                 m[i + N*j] -= expi[k] * vrr[k + N*i] * vri[k + N*j];

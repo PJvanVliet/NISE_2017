@@ -389,6 +389,18 @@ void pop_single_t2(t_non* non) {
                 update_trajectories(non, t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
             }
             if (nise_dba == 1) {
+		if (t2 == 0 && samples == 3) {
+		    // printf("Initial wavefunction:\n");
+		    // printcvec(cr_nise_dba, ci_nise_dba, N);
+		    // printf("Old eigenvectors:\n");
+		    // printmat(H_old, N);
+		    // printf("Old eigenvalues:\n");
+		    // printrvec(e_old, N);
+		    // printf("New eigenvectors:\n");
+		    // printmat(H_new, N);
+		    // printf("New eigenvalues:\n");
+		    // printrvec(e, N);
+		}
                 if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
                     matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
@@ -403,6 +415,10 @@ void pop_single_t2(t_non* non) {
                     propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
                 update_trajectories(non, t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
+		if (t2 == 0 && samples == 3) {
+		    // printf("Final wavefunction:\n");
+		    // printcvec(cr_nise_dba, ci_nise_dba, N);
+		}
             }
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
