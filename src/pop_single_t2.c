@@ -370,18 +370,18 @@ void pop_single_t2(t_non* non) {
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
-                    matrix_on_vector(H_old, cr_nise, ci_nise, N);
+                    trans_matrix_on_vector(H_old, cr_nise, ci_nise, N);
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
                     // Transfer site -> adiabatic basis
-                    trans_matrix_on_vector(H_new, cr_nise, ci_nise, N);
+                    matrix_on_vector(H_new, cr_nise, ci_nise, N);
                 } else if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
-                    matrix_on_vector(H_avg, cr_nise, ci_nise, N);
+                    trans_matrix_on_vector(H_avg, cr_nise, ci_nise, N);
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
                     // Transfer site -> average basis
-                    trans_matrix_on_vector(H_avg, cr_nise, ci_nise, N);
+                    matrix_on_vector(H_avg, cr_nise, ci_nise, N);
                 } else {
                     // Propagate
                     propagate_NISE(non, H_new, e, re_U, im_U, cr_nise, ci_nise);
@@ -403,12 +403,12 @@ void pop_single_t2(t_non* non) {
 		}
                 if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
-                    matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
+                    trans_matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
                     propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                     // Transfer site -> average basis
-                    trans_matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
+                    matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
@@ -423,11 +423,11 @@ void pop_single_t2(t_non* non) {
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
-                    matrix_on_vector(H_old, cr_nise_dbb, ci_nise_dbb, N);
+                    trans_matrix_on_vector(H_old, cr_nise_dbb, ci_nise_dbb, N);
                     // Propagate
                     propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
                     // Transfer site -> adiabatic basis
-                    trans_matrix_on_vector(H_new, cr_nise_dbb, ci_nise_dbb, N);
+                    matrix_on_vector(H_new, cr_nise_dbb, ci_nise_dbb, N);
                 } else {
                     // Propagate
                     propagate_nise_dbb(non, H_avg, H_new, e_avg, e, re_U, im_U, cr_nise_dbb, ci_nise_dbb);
@@ -437,12 +437,12 @@ void pop_single_t2(t_non* non) {
             if (tnise == 1) {
                 if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
-                    matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
+                    trans_matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
                     propagate_tnise(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_tnise, ci_tnise);
                     // Transfer site -> average basis
-                    trans_matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
+                    matrix_on_vector(H_avg, cr_tnise, ci_tnise, N);
                 } else {
                     // Propagate
                     copyvec(H_old, Hcopy, N2);
