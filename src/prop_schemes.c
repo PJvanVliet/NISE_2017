@@ -75,16 +75,10 @@ void propagate_nise_dba(
     Hcc = (float *)calloc(N2, sizeof(float));
     Hcopy = (float *)calloc(N2, sizeof(float));
     
-    // printf("Eigenvectors:\n");
-    // printmat(H_old, N);
-    // printf("Eigenvalues:\n");
-    // printrvec(e_old, N);
     // Convert local -> adiabatic basis
     if (!strcmp(non->basis, "Local") || !strcmp(non->basis, "Average")) {
         matrix_on_vector(H_old, cr, ci, N);
     }
-    // printf("Initial wavefunction in adiabatic basis:\n");
-    // printcvec(cr, ci, N);
 
     // Compute absolute values of the wavefunction coeffs
     for (i = 0; i < N; i++) {
@@ -116,19 +110,11 @@ void propagate_nise_dba(
             Hcopy[i + N*j] /= (e_new[j] - e_new[i]);
         }
     }
-    // printf("Uncorrected nonadiabatic couplings:\n");
-    // printmat(Hcopy, N);
     thermal_correction(non, Hcopy, e_new, abs, symm);
-    // printf("Corrected nonadiabatic couplings:\n");
-    // printmat(Hcopy, N);
     // Exponentiate the non-adiabatic couplings
     matrix_exp(Hcopy, N);
-    // printf("Exponentiated nonadiabatic couplings:\n");
-    // printmat(Hcopy, N);
     // Multiply with (real) non-adiabatic propagator
     trans_matrix_on_vector(Hcopy, cr, ci, N);
-    // printf("Wavefunction adiabatic basis:\n");
-    // printcvec(cr, ci, N);
     // Exponentiate [U=exp(-i/h H dt)]
     for (i = 0; i < N; i++) {
         re_U[i] = cos(e_old[i] * f);
@@ -143,8 +129,6 @@ void propagate_nise_dba(
     }
 
     free(abs), free(Hcopy);
-    // printf("Final wavefunction NISE-DBa:\n");
-    // printcvec(cr, ci, N);
 }
 
 // Expects wavefunction in average eigenbasis or local basis

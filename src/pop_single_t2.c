@@ -119,8 +119,6 @@ void avg_hamil(t_non* non, FILE *H_traj, float* H_avg, float* e_avg, int N) {
             H_avg[b + N * a] /= L;
         }
     }
-    printf("Average Hamiltonian:\n");
-    printmat(H_avg, N);
     // Diagonalise Hamiltonian
     diagonalizeLPD(H_avg, e_avg, N);
 }
@@ -137,60 +135,34 @@ void col_swap(float* a, int col1, int col2, int N) {
 void swaps(float* H_new, float* H_old, float* e_new, int N) {
     int N2;
     float *Hcopy;
-    float temp;
-    int imax, jmax;
     int i, j, k;
-    float min_diag, max_offdiag;
-    
+    float max;
+    float temp;
+
     N2 = N * N;
     Hcopy = (float *)calloc(N2, sizeof(float));
     copyvec(H_old, Hcopy, N2);
     matrix_on_matrix(H_new, Hcopy, N);
     
-    // Set initial values
-    imax = 0, jmax = 0;
-    min_diag = 0, max_offdiag = 1;
-
-    // Check if columns must be swapped
-    while (min_diag < max_offdiag) {
-        if (imax != jmax) {
-	    // Swap columns
-            col_swap(H_new, imax, jmax, N);
-	    // Swap associated eigenvalues
-	    temp = e_new[imax];
-	    e_new[imax] = e_new[jmax];
-	    e_new[jmax] = temp;
-        }
-        // Recompute min_diag and max_offdiag
-        copyvec(H_old, Hcopy, N2);
-        matrix_on_matrix(H_new, Hcopy, N);
-        // Determine maximum off-diagonal 
-        // and minimum diagonal elements.
-        imax = 0, jmax = 0;
-        min_diag = 1, max_offdiag = 0;
-        for (i = 0; i < N; i++) {
-            temp = fabs(Hcopy[i + N*i]);
-            if (temp < min_diag) {
-                min_diag = temp;
-            }
-            for (j = 0; j < i; j++) {
-                temp = fabs(Hcopy[j + N*i]);
-                if (temp > max_offdiag) {
-                    imax = i, jmax = j;
-                    max_offdiag = temp;
-                }
-            }
-        }
-    }
-
-    // Check whether we need to change the sign of the eigenvectors
-    copyvec(H_old, Hcopy, N2);
-    matrix_on_matrix(H_new, Hcopy, N);
+    // Find largest value per column
     for (i = 0; i < N; i++) {
-        if (Hcopy[i + N*i] < 0) {
-            for (j = 0; j < N; j++) {
-                H_new[i + N*j] = -H_new[i + N*j];
+	max = 0;
+        k = i;
+        for (j = 0; j < N; j++) {
+            if (fabs(Hcopy[j + N*i]) > max) {
+                max = fabs(Hcopy[j + N*i]);
+                k = j;
             }
+        }
+        if (k != i) {
+	    // Swap the eigenvectors
+	    col_swap(H_new, k, i, N);
+            copyvec(H_old, Hcopy, N2);
+            matrix_on_matrix(H_new, Hcopy, N);
+	    // Swap associated eigenvalues
+	    temp = e_new[k];
+	    e_new[k] = e_new[i];
+	    e_new[i] = temp;
         }
     }
     
@@ -251,13 +223,7 @@ void pop_single_t2(t_non* non) {
     nise_dba = 1;
     nise_dbb = 1;
     tnise = 0;
-    // Cannot run tNISE for more than two sites
-    // if (non->singles < 3) {
-    //     tnise = 1;
-    // } else {
-    //     tnise = 0;
-    // }
-
+    
     Hamil_i_e = (float *) calloc(nn2, sizeof(float));
     H_avg = (float *) calloc(N2, sizeof(float));
     e_avg = (float *) calloc(N, sizeof(float));
@@ -367,6 +333,7 @@ void pop_single_t2(t_non* non) {
             }
             build_diag_H(Hamil_i_e, H_new, e, N);
 	    swaps(H_new, H_old, e, N);
+
             if (nise == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
                     // Transfer adiabatic -> site basis
@@ -389,19 +356,7 @@ void pop_single_t2(t_non* non) {
                 update_trajectories(non, t2, N, cr_nise, ci_nise, pop_nise, cohr_nise, cohi_nise);
             }
             if (nise_dba == 1) {
-		if (t2 == 0 && samples == 3) {
-		    // printf("Initial wavefunction:\n");
-		    // printcvec(cr_nise_dba, ci_nise_dba, N);
-		    // printf("Old eigenvectors:\n");
-		    // printmat(H_old, N);
-		    // printf("Old eigenvalues:\n");
-		    // printrvec(e_old, N);
-		    // printf("New eigenvectors:\n");
-		    // printmat(H_new, N);
-		    // printf("New eigenvalues:\n");
-		    // printrvec(e, N);
-		}
-                if (!strcmp(non->basis, "Average")) {
+		if (!strcmp(non->basis, "Average")) {
                     // Transfer average -> site basis
                     trans_matrix_on_vector(H_avg, cr_nise_dba, ci_nise_dba, N);
                     // Propagate
@@ -415,10 +370,6 @@ void pop_single_t2(t_non* non) {
                     propagate_nise_dba(non, Hcopy, H_new, e_old, e, re_U, im_U, cr_nise_dba, ci_nise_dba);
                 }
                 update_trajectories(non, t2, N, cr_nise_dba, ci_nise_dba, pop_nise_dba, cohr_nise_dba, cohi_nise_dba);
-		if (t2 == 0 && samples == 3) {
-		    // printf("Final wavefunction:\n");
-		    // printcvec(cr_nise_dba, ci_nise_dba, N);
-		}
             }
             if (nise_dbb == 1) {
                 if (!strcmp(non->basis, "Adiabatic")) {
